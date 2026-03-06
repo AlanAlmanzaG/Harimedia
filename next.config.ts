@@ -6,12 +6,13 @@ const withPWA = withPWAInit({
   dest: "public",
   disable: process.env.NODE_ENV === "development",
   register: true,
-  skipWaiting: true,
+  // Eliminamos skipWaiting, el plugin ya se encarga de esto por detrás
 });
 
 const nextConfig: NextConfig = {
   reactStrictMode: true,
-  // Aquí puedes agregar otras configuraciones de Next.js en el futuro si las necesitas
+  // Esta línea soluciona el error de compilación en Vercel
+  turbopack: {},
 };
 
 export default withPWA(nextConfig);
