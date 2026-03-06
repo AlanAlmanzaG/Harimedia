@@ -7,18 +7,23 @@ export type MediaType = 'pelicula' | 'serie' | 'anime' | 'manga' | 'caricatura' 
 export type MediaStatus = 'viendo' | 'completado' | 'pausa' | 'abandonado' | 'plan';
 
 // Campos que TODOS los elementos comparten (La base)
+// src/types/index.ts (Solo actualiza BaseMedia)
 export interface BaseMedia {
-  id?: string; // Es opcional porque al crear un registro nuevo, Firebase genera el ID
+  id?: string;
   userId: string;
   title: string;
   type: MediaType;
   status: MediaStatus;
-  score?: number; // Calificacion del 1 al 10, opcional
-  coverUrl?: string; // URL de la imagen de portada, opcional
-  review?: string; // Notas personales o reseña
-  createdAt: number; // Guardaremos la fecha en milisegundos para mayor compatibilidad
+  score?: number;
+  coverUrl?: string; // <-- Ya lo teníamos preparado
+  director?: string; // <-- Nuevo
+  year?: number;     // <-- Nuevo
+  genre?: string;    // <-- Nuevo
+  review?: string;
+  createdAt: number;
   updatedAt: number;
 }
+// ... deja el resto del archivo igual
 
 // Especifico para Peliculas (Sin capitulos)
 export interface Movie extends BaseMedia {
