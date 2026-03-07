@@ -354,7 +354,7 @@ export default function PerfilPage() {
       {favorites.length > 0 && (
         <div className="mb-8">
           <h2 className="text-lg font-bold mb-4">
-            Favoritos
+            <PieChartIcon size={20} className="text-indigo-500" /> Favoritos
           </h2>
           
           <div className="flex overflow-x-auto gap-4 pb-4 px-5 -mx-5 snap-x hide-scrollbar">
