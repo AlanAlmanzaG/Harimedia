@@ -1,2 +1,11 @@
 @import "tailwindcss";
 @custom-variant dark (&:is(.dark *));
+
+/* Ocultar barra de scroll para carruseles */
+.hide-scrollbar {
+  -ms-overflow-style: none;  /* IE y Edge */
+  scrollbar-width: none;  /* Firefox */
+}
+.hide-scrollbar::-webkit-scrollbar {
+  display: none; /* Chrome, Safari y Opera */
+}
