@@ -351,14 +351,15 @@ export default function PerfilPage() {
         </div>
       )}
 
-      {/* 3. SALÓN DE LA FAMA (FAVORITOS) */}
+      {/* 3. FAVORITOS */}
       {favorites.length > 0 && (
         <div className="mb-8">
-          <h2 className="text-lg font-bold mb-4 flex items-center gap-2">
-            <Star size={20} className="text-yellow-500" fill="currentColor" /> Salón de la Fama
+          <h2 className="text-lg font-bold mb-4">
+            Favoritos
           </h2>
           
-          <div className="flex overflow-x-auto gap-4 pb-4 snap-x hide-scrollbar">
+          {/* Contenedor con scroll horizontal estilo estantería, fluyendo de lado a lado */}
+          <div className="flex overflow-x-auto gap-4 pb-4 px-5 -mx-5 snap-x hide-scrollbar">
             {favorites.map((fav) => (
               <div key={fav.id} className="snap-start shrink-0 w-32 flex flex-col gap-2">
                 <div className="w-32 h-48 bg-gray-200 dark:bg-gray-800 rounded-2xl overflow-hidden relative shadow-sm border border-gray-100 dark:border-gray-800">
