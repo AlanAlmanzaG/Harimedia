@@ -110,7 +110,7 @@ export default function PerfilPage() {
         if (!Array.isArray(importedData)) throw new Error('El archivo no tiene el formato correcto.');
 
         setIsRestoring(true);
-        toast.info('Importando datos, por favor espera...');
+        toast.info('Importando y traduciendo datos, por favor espera...');
 
         const batch = writeBatch(db);
         let count = 0;
@@ -118,21 +118,57 @@ export default function PerfilPage() {
         importedData.forEach((item: any) => {
           if (!item.title || !item.type) return; 
           const newDocRef = doc(collection(db, 'entries'));
+          
+          // Extraemos los datos viejos
           const { id, userId, ...dataToSave } = item;
-          batch.set(newDocRef, { ...dataToSave, userId: user.uid, updatedAt: Date.now() });
+          
+          // --- TRADUCTOR AUTOMÁTICO DE JSON ANTIGUO AL NUEVO HARIMEDIA ---
+          
+          // 1. Forzamos tipo y fecha
+          const safeType = item.type.toLowerCase();
+          const safeCreatedAt = item.createdAt || Date.now();
+          
+          // 2. Mapeamos las propiedades antiguas a las nuevas (si existen)
+          const currentProgress = item.currentChapter ?? item.currentEpisode ?? item.chapter ?? 0;
+          const finalScore = item.score ?? item.rating ?? null;
+          const finalReleaseStatus = item.releaseStatus ?? item.pubStatus ?? 'terminado';
+          const finalTotalProgress = item.totalProgress ?? item.totalChapters ?? null;
+
+          // 3. Limpiamos la basura vieja para no ensuciar la base de datos
+          delete dataToSave.chapter;
+          delete dataToSave.rating;
+          delete dataToSave.pubStatus;
+          delete dataToSave.totalChapters;
+
+          // 4. Guardamos el objeto ya traducido
+          batch.set(newDocRef, { 
+            ...dataToSave, 
+            type: safeType,
+            userId: user.uid, 
+            createdAt: safeCreatedAt,
+            updatedAt: Date.now(),
+            
+            // Asignamos las variables traducidas
+            currentChapter: safeType === 'manga' || safeType === 'manhwa' ? currentProgress : 0,
+            currentEpisode: safeType === 'serie' || safeType === 'anime' || safeType === 'caricatura' ? currentProgress : 0,
+            score: finalScore,
+            releaseStatus: finalReleaseStatus,
+            totalProgress: finalTotalProgress
+          });
+          
           count++;
         });
 
         if (count > 0) {
           await batch.commit();
-          toast.success(`¡Se han restaurado ${count} obras a tu bitácora!`);
+          toast.success(`¡Se han restaurado y traducido ${count} obras a tu bitácora!`);
         } else {
           toast.error('No se encontraron obras válidas en el archivo.');
         }
 
       } catch (err) {
         console.error("Error importando:", err);
-        toast.error('Error al leer el archivo. ¿Seguro que es un backup de Harimedia?');
+        toast.error('Error al leer el archivo. Verifica el formato.');
       } finally {
         setIsRestoring(false);
         if (fileInputRef.current) fileInputRef.current.value = '';
