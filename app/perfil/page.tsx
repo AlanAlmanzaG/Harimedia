@@ -7,7 +7,6 @@ import { collection, query, where, onSnapshot, writeBatch, doc } from 'firebase/
 import { signOut, updateProfile } from 'firebase/auth';
 import { auth, db } from '@/lib/firebase';
 import { useAuth } from '@/context/AuthContext';
-import { MediaEntry } from '@/types';
 import { toast } from 'sonner';
 import { useTheme } from 'next-themes';
 
@@ -211,7 +210,7 @@ export default function PerfilPage() {
   const axisColor = theme === 'dark' ? '#9ca3af' : '#6b7280';
 
   return (
-    <div className="p-5 pb-24">
+    <div className="p-5 pb-24 overflow-x-hidden">
       {/* 1. CABECERA DEL PERFIL */}
       <header className="relative py-8 mb-6 bg-white dark:bg-gray-900 rounded-3xl shadow-sm border border-gray-100 dark:border-gray-800 transition-all">
         {!isEditingProfile ? (
@@ -351,17 +350,19 @@ export default function PerfilPage() {
         </div>
       )}
 
-      {/* 3. FAVORITOS */}
+      {/* 3. FAVORITOS - DISEÑO FLUIDO DE BORDE A BORDE */}
       {favorites.length > 0 && (
         <div className="mb-8">
           <h2 className="text-lg font-bold mb-4">
-            <Star size={20} className="text-yellow-500" fill="currentColor" /> Favortitos
+            Favoritos
           </h2>
           
-          {/* Contenedor con scroll horizontal estilo estantería, fluyendo de lado a lado */}
           <div className="flex overflow-x-auto gap-4 pb-4 px-5 -mx-5 snap-x hide-scrollbar">
-            {favorites.map((fav) => (
-              <div key={fav.id} className="snap-start shrink-0 w-32 flex flex-col gap-2">
+            {favorites.map((fav, index) => (
+              <div 
+                key={fav.id} 
+                className={`snap-start shrink-0 w-32 flex flex-col gap-2 ${index === favorites.length - 1 ? 'mr-5' : ''}`}
+              >
                 <div className="w-32 h-48 bg-gray-200 dark:bg-gray-800 rounded-2xl overflow-hidden relative shadow-sm border border-gray-100 dark:border-gray-800">
                   {fav.coverUrl ? (
                     <img src={fav.coverUrl} alt={fav.title} className="w-full h-full object-cover" />
