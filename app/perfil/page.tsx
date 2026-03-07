@@ -355,7 +355,7 @@ export default function PerfilPage() {
       {favorites.length > 0 && (
         <div className="mb-8">
           <h2 className="text-lg font-bold mb-4">
-            Favoritos
+            <Star size={20} className="text-yellow-500" fill="currentColor" /> Favortitos
           </h2>
           
           {/* Contenedor con scroll horizontal estilo estantería, fluyendo de lado a lado */}
