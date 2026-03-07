@@ -36,6 +36,20 @@ export default function BuscarPage() {
     entry.title.toLowerCase().includes(searchTerm.toLowerCase())
   );
 
+  // --- SOLUCIÓN: DICCIONARIO DE RUTAS ---
+  // Traduce el tipo de Firebase a la URL exacta que necesitas
+  const getRouteForType = (type: string) => {
+    const routes: Record<string, string> = {
+      'pelicula': '/peliculas',
+      'serie': '/series',
+      'anime': '/anime',
+      'manga': '/manga',
+      'caricatura': '/caricaturas',
+      'manhwa': '/manhwa',
+    };
+    return routes[type] || '/'; // Si no lo encuentra por alguna razón, te manda al inicio
+  };
+
   return (
     <div className="p-5 pb-24 h-screen flex flex-col">
       <header className="mb-6 mt-2">
@@ -76,7 +90,8 @@ export default function BuscarPage() {
         ) : (
           searchResults.map((entry) => (
             <Link 
-              href={`/${entry.type === 'caricatura' ? 'caricaturas' : entry.type}s`} 
+              // Usamos nuestro diccionario aquí
+              href={getRouteForType(entry.type)} 
               key={entry.id}
               className="flex items-center gap-4 p-3 bg-white dark:bg-gray-900 rounded-2xl shadow-sm border border-gray-100 dark:border-gray-800 hover:border-blue-300 dark:hover:border-blue-700 transition-colors group"
             >

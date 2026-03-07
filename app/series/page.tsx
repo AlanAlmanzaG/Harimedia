@@ -10,10 +10,12 @@ import { toast } from 'sonner';
 import { collection, query, where, orderBy, onSnapshot, doc, deleteDoc, updateDoc } from 'firebase/firestore';
 import { db } from '@/lib/firebase';
 import { useAuth } from '@/context/AuthContext';
-import { Episodic, MediaStatus } from '@/types';
+import { MediaStatus } from '@/types';
 
 export default function SeriesPage() {
   const { user } = useAuth();
+  
+  // Usamos any temporalmente para el array para no tener errores de TypeScript con las nuevas propiedades
   const [seriesList, setSeriesList] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [showForm, setShowForm] = useState(false);
@@ -27,24 +29,38 @@ export default function SeriesPage() {
 
   useEffect(() => {
     if (!user) return;
-    const q = query(collection(db, 'entries'), where('userId', '==', user.uid), where('type', '==', 'serie'), orderBy('createdAt', 'desc'));
+
+    const q = query(
+      collection(db, 'entries'),
+      where('userId', '==', user.uid),
+      where('type', '==', 'serie'),
+      orderBy('createdAt', 'desc')
+    );
+
     const unsubscribe = onSnapshot(q, (querySnapshot) => {
       const data: any[] = [];
-      querySnapshot.forEach((doc) => data.push({ id: doc.id, ...doc.data() }));
+      querySnapshot.forEach((doc) => {
+        data.push({ id: doc.id, ...doc.data() });
+      });
       setSeriesList(data);
       setLoading(false);
+    }, (error) => {
+      console.error("Error obteniendo series: ", error);
+      setLoading(false);
     });
+
     return () => unsubscribe();
   }, [user]);
 
   const handleDelete = async (id: string | undefined) => {
     if (!id) return;
-    if (window.confirm('¿Estás seguro de que deseas eliminar esta serie?')) {
+    if (window.confirm('¿Estás seguro de que deseas eliminar esta serie de tu bitácora?')) {
       try {
         await deleteDoc(doc(db, 'entries', id));
-        toast.success('Serie eliminada correctamente');
+        toast.success('Eliminada correctamente');
       } catch (error) {
-        toast.error('Hubo un error al eliminar.');
+        console.error("Error al eliminar:", error);
+        toast.error('Hubo un error al eliminar. Inténtalo de nuevo.');
       }
     }
   };
@@ -54,11 +70,11 @@ export default function SeriesPage() {
     if (!serie.id) return;
     
     const currentEp = serie.currentEpisode || 0;
-    const totalEp = serie.totalProgress; // Puede ser null/undefined
+    const totalEp = serie.totalProgress;
 
     // Verificamos el límite
     if (totalEp && currentEp >= totalEp) {
-      toast.info('¡Ya llegaste al episodio final de esta serie!');
+      toast.info('¡Ya llegaste al episodio final!');
       return;
     }
 
@@ -73,21 +89,27 @@ export default function SeriesPage() {
       // Si con este clic llegó al final, la marcamos como completada automáticamente
       if (totalEp && currentEp + 1 === totalEp) {
         newData.status = 'completado';
-        toast.success('¡Felicidades, terminaste la serie!', { duration: 4000 });
+        toast.success('¡Felicidades, terminaste esta serie!', { duration: 4000 });
       }
 
       await updateDoc(docRef, newData);
     } catch (error) {
-      console.error("Error al incrementar:", error);
+      console.error("Error al incrementar episodio:", error);
       toast.error('Error al actualizar el episodio');
     }
   };
 
+  const handleCloseForm = () => {
+    setShowForm(false);
+    setEditingSerie(null);
+  };
+
   const filteredAndSortedSeries = useMemo(() => {
     return seriesList
-      .filter((s) => {
-        const matchesSearch = s.title.toLowerCase().includes(searchTerm.toLowerCase());
-        const matchesStatus = statusFilter === 'todos' || s.status === statusFilter;
+      .filter((serie) => {
+        const matchesSearch = serie.title.toLowerCase().includes(searchTerm.toLowerCase()) || 
+                              (serie.director && serie.director.toLowerCase().includes(searchTerm.toLowerCase()));
+        const matchesStatus = statusFilter === 'todos' || serie.status === statusFilter;
         return matchesSearch && matchesStatus;
       })
       .sort((a, b) => {
@@ -99,6 +121,10 @@ export default function SeriesPage() {
   }, [seriesList, searchTerm, statusFilter, sortBy]);
 
   const displayedSeries = filteredAndSortedSeries.slice(0, visibleCount);
+  const hasMore = visibleCount < filteredAndSortedSeries.length;
+
+  const handleLoadMore = () => setVisibleCount(prev => prev + 10);
+
   const getStatusColor = (status: string) => {
     switch (status) {
       case 'viendo': return 'bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200';
@@ -113,40 +139,76 @@ export default function SeriesPage() {
     <div className="p-5">
       <header className="flex items-center justify-between mb-4 mt-2">
         <div className="flex items-center gap-3">
-          <Link href="/" className="p-2 -ml-2 rounded-full hover:bg-gray-200 dark:hover:bg-gray-800 transition-colors"><ArrowLeft size={24} /></Link>
+          <Link href="/" className="p-2 -ml-2 rounded-full hover:bg-gray-200 dark:hover:bg-gray-800 transition-colors">
+            <ArrowLeft size={24} />
+          </Link>
           <h1 className="text-2xl font-bold tracking-tight">Series</h1>
         </div>
+        
         {!(showForm || editingSerie) && (
-          <button onClick={() => setShowForm(true)} className="flex items-center gap-1 bg-blue-500 text-white px-3 py-2 rounded-xl text-sm font-medium hover:bg-blue-600 transition-colors shadow-sm">
-            <Plus size={18} /><span className="hidden sm:inline">Agregar</span>
+          <button
+            onClick={() => setShowForm(true)}
+            className="flex items-center gap-1 bg-blue-500 text-white px-3 py-2 rounded-xl text-sm font-medium hover:bg-blue-600 transition-colors shadow-sm"
+          >
+            <Plus size={18} />
+            <span className="hidden sm:inline">Agregar</span>
           </button>
         )}
       </header>
 
-      {/* Buscador y filtros (Mantenemos tu código igual) */}
       {!(showForm || editingSerie) && seriesList.length > 0 && (
         <div className="mb-6 space-y-3">
           <div className="flex gap-2">
             <div className="relative flex-grow">
-              <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none"><Search size={18} className="text-gray-400" /></div>
-              <input type="text" value={searchTerm} onChange={(e) => setSearchTerm(e.target.value)} className="block w-full pl-10 pr-3 py-2 border border-gray-200 dark:border-gray-700 rounded-xl leading-5 bg-white dark:bg-gray-900 focus:outline-none focus:ring-2 focus:ring-blue-500" placeholder="Buscar serie..." />
+              <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                <Search size={18} className="text-gray-400" />
+              </div>
+              <input
+                type="text"
+                value={searchTerm}
+                onChange={(e) => {
+                  setSearchTerm(e.target.value);
+                  setVisibleCount(10);
+                }}
+                className="block w-full pl-10 pr-3 py-2 border border-gray-200 dark:border-gray-700 rounded-xl leading-5 bg-white dark:bg-gray-900 placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 sm:text-sm transition-colors"
+                placeholder="Buscar serie o creador..."
+              />
             </div>
-            <button onClick={() => setShowFilters(!showFilters)} className={`p-2 rounded-xl border flex items-center justify-center ${showFilters ? 'bg-blue-50 border-blue-200 text-blue-600' : 'bg-white border-gray-200 text-gray-600 dark:bg-gray-900 dark:border-gray-700 dark:text-gray-300'}`}>
+            <button
+              onClick={() => setShowFilters(!showFilters)}
+              className={`p-2 rounded-xl border transition-colors flex items-center justify-center ${showFilters ? 'bg-blue-50 border-blue-200 text-blue-600 dark:bg-blue-900/30 dark:border-blue-800 dark:text-blue-400' : 'bg-white border-gray-200 text-gray-600 dark:bg-gray-900 dark:border-gray-700 dark:text-gray-300'}`}
+            >
               <SlidersHorizontal size={20} />
             </button>
           </div>
+
           {showFilters && (
-            <div className="p-4 bg-white dark:bg-gray-900 rounded-xl border border-gray-100 dark:border-gray-800 grid grid-cols-2 gap-4 animate-in fade-in">
+            <div className="p-4 bg-white dark:bg-gray-900 rounded-xl border border-gray-100 dark:border-gray-800 shadow-sm grid grid-cols-2 gap-4 animate-in fade-in slide-in-from-top-2">
               <div>
-                <label className="block text-xs font-semibold text-gray-500 uppercase mb-2">Estado</label>
-                <select value={statusFilter} onChange={(e) => setStatusFilter(e.target.value as any)} className="w-full text-sm rounded-lg border border-gray-200 dark:border-gray-700 bg-transparent px-3 py-2 outline-none">
-                  <option className="dark:bg-gray-800" value="todos">Todos</option><option className="dark:bg-gray-800" value="plan">Planear ver</option><option className="dark:bg-gray-800" value="viendo">Viendo</option><option className="dark:bg-gray-800" value="completado">Completado</option><option className="dark:bg-gray-800" value="pausa">En pausa</option><option className="dark:bg-gray-800" value="abandonado">Abandonado</option>
+                <label className="block text-xs font-semibold text-gray-500 uppercase tracking-wider mb-2">Estado</label>
+                <select
+                  value={statusFilter}
+                  onChange={(e) => setStatusFilter(e.target.value as any)}
+                  className="w-full text-sm rounded-lg border border-gray-200 dark:border-gray-700 bg-transparent px-3 py-2 focus:ring-2 focus:ring-blue-500 outline-none"
+                >
+                  <option className="bg-white dark:bg-gray-800" value="todos">Todos</option>
+                  <option className="bg-white dark:bg-gray-800" value="plan">Planear ver</option>
+                  <option className="bg-white dark:bg-gray-800" value="viendo">Viendo</option>
+                  <option className="bg-white dark:bg-gray-800" value="completado">Completado</option>
+                  <option className="bg-white dark:bg-gray-800" value="pausa">En pausa</option>
+                  <option className="bg-white dark:bg-gray-800" value="abandonado">Abandonado</option>
                 </select>
               </div>
               <div>
-                <label className="block text-xs font-semibold text-gray-500 uppercase mb-2">Ordenar</label>
-                <select value={sortBy} onChange={(e) => setSortBy(e.target.value as any)} className="w-full text-sm rounded-lg border border-gray-200 dark:border-gray-700 bg-transparent px-3 py-2 outline-none">
-                  <option className="dark:bg-gray-800" value="recientes">Recientes</option><option className="dark:bg-gray-800" value="calificacion">Mejor Calificadas</option><option className="dark:bg-gray-800" value="alfabetico">Alfabético</option>
+                <label className="block text-xs font-semibold text-gray-500 uppercase tracking-wider mb-2">Ordenar por</label>
+                <select
+                  value={sortBy}
+                  onChange={(e) => setSortBy(e.target.value as any)}
+                  className="w-full text-sm rounded-lg border border-gray-200 dark:border-gray-700 bg-transparent px-3 py-2 focus:ring-2 focus:ring-blue-500 outline-none"
+                >
+                  <option className="bg-white dark:bg-gray-800" value="recientes">Recientes</option>
+                  <option className="bg-white dark:bg-gray-800" value="calificacion">Mejor Calificadas</option>
+                  <option className="bg-white dark:bg-gray-800" value="alfabetico">Alfabético (A-Z)</option>
                 </select>
               </div>
             </div>
@@ -155,14 +217,33 @@ export default function SeriesPage() {
       )}
 
       {(showForm || editingSerie) ? (
-        <div className="animate-in fade-in slide-in-from-bottom-4">
-          <MediaForm key={editingSerie ? editingSerie.id : 'new-form'} type="serie" initialData={editingSerie} onSuccess={() => { setShowForm(false); setEditingSerie(null); }} onCancel={() => { setShowForm(false); setEditingSerie(null); }} />
+        <div className="animate-in fade-in slide-in-from-bottom-4 duration-300">
+          <MediaForm 
+            key={editingSerie ? editingSerie.id : 'new-form'}
+            type="serie" 
+            initialData={editingSerie} 
+            onSuccess={handleCloseForm} 
+            onCancel={handleCloseForm} 
+          />
         </div>
       ) : (
         <div className="space-y-4 pb-10">
-          {loading ? ( <><SkeletonCard /><SkeletonCard /><SkeletonCard /></> ) 
-          : seriesList.length === 0 ? (
-            <div className="mt-10 text-center"><Plus size={32} className="mx-auto text-gray-400 mb-4" /><h3 className="text-lg font-medium">Aún no hay series</h3></div>
+          {loading ? (
+            <>
+              <SkeletonCard />
+              <SkeletonCard />
+              <SkeletonCard />
+            </>
+          ) : seriesList.length === 0 ? (
+            <div className="mt-10 text-center">
+              <div className="inline-flex items-center justify-center w-16 h-16 rounded-full bg-gray-100 dark:bg-gray-800 mb-4">
+                <Plus size={32} className="text-gray-400" />
+              </div>
+              <h3 className="text-lg font-medium text-gray-900 dark:text-gray-100">Aún no hay series</h3>
+              <p className="mt-1 text-sm text-gray-500 dark:text-gray-400">
+                Toca el botón de agregar para registrar tu primera serie.
+              </p>
+            </div>
           ) : (
             <>
               {displayedSeries.map((serie) => {
@@ -180,9 +261,13 @@ export default function SeriesPage() {
                     </div>
 
                     <div className="w-24 h-36 shrink-0 bg-gray-200 dark:bg-gray-800 rounded-lg overflow-hidden flex items-center justify-center relative">
-                      {serie.coverUrl ? <img src={serie.coverUrl} alt={serie.title} className="w-full h-full object-cover" /> : <Tv className="text-gray-400" size={32} />}
+                      {serie.coverUrl ? (
+                        <img src={serie.coverUrl} alt={serie.title} className="w-full h-full object-cover" />
+                      ) : (
+                        <Tv className="text-gray-400" size={32} />
+                      )}
                       
-                      {/* Etiqueta de "En Emisión" superpuesta en la imagen */}
+                      {/* Etiqueta de "En Emisión" */}
                       {serie.releaseStatus === 'emision' && (
                         <div className="absolute bottom-0 left-0 right-0 bg-red-600/90 text-white text-[9px] font-bold text-center py-1 uppercase tracking-wider backdrop-blur-sm">
                           En Emisión
@@ -193,14 +278,14 @@ export default function SeriesPage() {
                     <div className="flex flex-col flex-grow justify-between py-1 pr-14">
                       <div>
                         <h3 className="font-bold text-lg leading-tight mb-1 line-clamp-2">{serie.title}</h3>
+                        {serie.director && <p className="text-sm text-gray-600 dark:text-gray-400 line-clamp-1">{serie.director}</p>}
                         
                         <div className="flex items-center gap-2 mt-1">
-                          <p className={`text-sm font-medium ${isFinished ? 'text-green-600 dark:text-green-400' : 'text-blue-600 dark:text-blue-400'}`}>
+                          <p className={`text-sm font-medium ${isFinished ? 'text-green-600 dark:text-green-400' : 'text-blue-600 dark:text-blue-500'}`}>
                             {serie.currentSeason ? `T${serie.currentSeason} • ` : ''} 
                             Ep. {currentEp} {totalEp ? `/ ${totalEp}` : ''}
                           </p>
                           
-                          {/* Ocultamos el botón o lo atenuamos si ya terminó */}
                           <button
                             onClick={() => handleIncrementEpisode(serie)}
                             disabled={isFinished}
@@ -212,7 +297,7 @@ export default function SeriesPage() {
                           </button>
                         </div>
 
-                        {/* BARRA DE PROGRESO VISUAL */}
+                        {/* BARRA DE PROGRESO */}
                         {totalEp > 0 && (
                           <div className="w-full bg-gray-100 dark:bg-gray-800 rounded-full h-1.5 mt-2 overflow-hidden">
                             <div 
@@ -228,13 +313,21 @@ export default function SeriesPage() {
                           {serie.status.replace('-', ' ')}
                         </span>
                         {serie.score && (
-                          <span className="text-sm font-bold bg-yellow-100 text-yellow-800 dark:bg-yellow-900 dark:text-yellow-200 px-2 py-1 rounded-md">★ {serie.score}</span>
+                          <span className="text-sm font-bold bg-yellow-100 text-yellow-800 dark:bg-yellow-900 dark:text-yellow-200 px-2 py-1 rounded-md">
+                            ★ {serie.score}/10
+                          </span>
                         )}
                       </div>
                     </div>
                   </div>
                 );
               })}
+              
+              {hasMore && (
+                <button onClick={handleLoadMore} className="w-full py-3 mt-4 text-sm font-medium text-gray-600 bg-gray-100 rounded-xl hover:bg-gray-200 transition-colors">
+                  Cargar más
+                </button>
+              )}
             </>
           )}
         </div>
