@@ -4,7 +4,8 @@ import { Inter } from 'next/font/google';
 import './globals.css';
 import { AuthProvider } from '@/context/AuthContext';
 import LayoutWrapper from '@/components/LayoutWrapper';
-import { Toaster } from 'sonner'; // <-- 1. Importamos Sonner
+import { Toaster } from 'sonner';
+import { ThemeProvider } from '@/components/ThemeProvider'; // <-- Importamos el tema
 
 const inter = Inter({ subsets: ['latin'] });
 
@@ -33,17 +34,19 @@ export default function RootLayout({
   children: React.ReactNode;
 }) {
   return (
-    <html lang="es">
-      <body className={`${inter.className} bg-gray-100 dark:bg-gray-950 text-gray-900 dark:text-gray-100`}>
-        <AuthProvider>
-          <div className="max-w-md mx-auto min-h-screen relative bg-white dark:bg-black shadow-xl overflow-x-hidden">
-            <LayoutWrapper>
-              {children}
-            </LayoutWrapper>
-          </div>
-          {/* 2. Agregamos el Toaster aquí. richColors le da colores vivos (rojo error, verde éxito) */}
-          <Toaster position="top-center" richColors /> 
-        </AuthProvider>
+    // Agregamos suppressHydrationWarning aquí
+    <html lang="es" suppressHydrationWarning> 
+      <body className={`${inter.className} bg-gray-50 dark:bg-gray-950 text-gray-900 dark:text-gray-100 transition-colors duration-300`}>
+        <ThemeProvider> {/* <-- Envolvemos toda la app aquí */}
+          <AuthProvider>
+            <div className="max-w-md mx-auto min-h-screen relative bg-white dark:bg-black shadow-xl overflow-x-hidden">
+              <LayoutWrapper>
+                {children}
+              </LayoutWrapper>
+            </div>
+            <Toaster position="top-center" richColors /> 
+          </AuthProvider>
+        </ThemeProvider>
       </body>
     </html>
   );
