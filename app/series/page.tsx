@@ -2,7 +2,7 @@
 "use client";
 
 import { useState, useEffect, useMemo } from 'react';
-import { Plus, ArrowLeft, Tv, Edit2, Trash2, Search, SlidersHorizontal, PlusCircle } from 'lucide-react';
+import { Plus, ArrowLeft, Tv, Edit2, Trash2, Search, SlidersHorizontal, PlusCircle, LayoutGrid, List } from 'lucide-react';
 import Link from 'next/link';
 import MediaForm from '@/components/MediaForm';
 import SkeletonCard from '@/components/SkeletonCard';
@@ -20,6 +20,9 @@ export default function SeriesPage() {
   const [loading, setLoading] = useState(true);
   const [showForm, setShowForm] = useState(false);
   const [editingSerie, setEditingSerie] = useState<any | null>(null);
+
+  // --- ESTADO PARA CONTROLAR LA VISTA (LISTA O CUADRÍCULA) ---
+  const [viewMode, setViewMode] = useState<'list' | 'grid'>('list');
 
   const [searchTerm, setSearchTerm] = useState('');
   const [statusFilter, setStatusFilter] = useState<MediaStatus | 'todos'>('todos');
@@ -174,6 +177,15 @@ export default function SeriesPage() {
                 placeholder="Buscar serie o creador..."
               />
             </div>
+            
+            {/* --- BOTÓN PARA ALTERNAR LA VISTA (GRID / LISTA) --- */}
+            <button
+              onClick={() => setViewMode(prev => prev === 'list' ? 'grid' : 'list')}
+              className="p-2 rounded-xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-900 text-gray-600 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-800 transition-colors flex items-center justify-center"
+            >
+              {viewMode === 'list' ? <LayoutGrid size={20} /> : <List size={20} />}
+            </button>
+
             <button
               onClick={() => setShowFilters(!showFilters)}
               className={`p-2 rounded-xl border transition-colors flex items-center justify-center ${showFilters ? 'bg-blue-50 border-blue-200 text-blue-600 dark:bg-blue-900/30 dark:border-blue-800 dark:text-blue-400' : 'bg-white border-gray-200 text-gray-600 dark:bg-gray-900 dark:border-gray-700 dark:text-gray-300'}`}
@@ -227,7 +239,8 @@ export default function SeriesPage() {
           />
         </div>
       ) : (
-        <div className="space-y-4 pb-10">
+        // --- CONTENEDOR DINÁMICO (Cambia la clase dependiendo de viewMode) ---
+        <div className={viewMode === 'grid' ? "grid grid-cols-2 sm:grid-cols-3 gap-4 pb-10" : "space-y-4 pb-10"}>
           {loading ? (
             <>
               <SkeletonCard />
@@ -235,7 +248,7 @@ export default function SeriesPage() {
               <SkeletonCard />
             </>
           ) : seriesList.length === 0 ? (
-            <div className="mt-10 text-center">
+            <div className="col-span-full mt-10 text-center">
               <div className="inline-flex items-center justify-center w-16 h-16 rounded-full bg-gray-100 dark:bg-gray-800 mb-4">
                 <Plus size={32} className="text-gray-400" />
               </div>
@@ -253,21 +266,105 @@ export default function SeriesPage() {
                 const progressPercent = totalEp ? Math.min((currentEp / totalEp) * 100, 100) : 0;
                 const isFinished = totalEp && currentEp >= totalEp;
 
+                // ---------------------------------
+                // RENDERIZADO: MODO LISTA (El original)
+                // ---------------------------------
+                if (viewMode === 'list') {
+                  return (
+                    <div key={serie.id} className="flex gap-4 p-3 bg-white dark:bg-gray-900 rounded-xl shadow-sm border border-gray-100 dark:border-gray-800 relative group animate-in fade-in">
+                      <div className="absolute top-2 right-2 flex gap-2">
+                        <button onClick={() => setEditingSerie(serie)} className="p-1.5 bg-gray-100 dark:bg-gray-800 text-gray-600 dark:text-gray-300 rounded-md hover:text-blue-600 transition-colors"><Edit2 size={16} /></button>
+                        <button onClick={() => handleDelete(serie.id)} className="p-1.5 bg-gray-100 dark:bg-gray-800 text-gray-600 dark:text-gray-300 rounded-md hover:text-red-600 transition-colors"><Trash2 size={16} /></button>
+                      </div>
+
+                      <div className="w-24 h-36 shrink-0 bg-gray-200 dark:bg-gray-800 rounded-lg overflow-hidden flex items-center justify-center relative">
+                        {serie.coverUrl ? (
+                          <img src={serie.coverUrl} alt={serie.title} className="w-full h-full object-cover" />
+                        ) : (
+                          <Tv className="text-gray-400" size={32} />
+                        )}
+                        
+                        {/* Etiqueta de "En Emisión" */}
+                        {serie.releaseStatus === 'emision' && (
+                          <div className="absolute bottom-0 left-0 right-0 bg-red-600/90 text-white text-[9px] font-bold text-center py-1 uppercase tracking-wider backdrop-blur-sm">
+                            En Emisión
+                          </div>
+                        )}
+                      </div>
+                      
+                      <div className="flex flex-col flex-grow justify-between py-1 pr-14">
+                        <div>
+                          <h3 className="font-bold text-lg leading-tight mb-1 line-clamp-2">{serie.title}</h3>
+                          {serie.director && <p className="text-sm text-gray-600 dark:text-gray-400 line-clamp-1">{serie.director}</p>}
+                          
+                          <div className="flex items-center gap-2 mt-1">
+                            <p className={`text-sm font-medium ${isFinished ? 'text-green-600 dark:text-green-400' : 'text-blue-600 dark:text-blue-500'}`}>
+                              {serie.currentSeason ? `T${serie.currentSeason} • ` : ''} 
+                              Ep. {currentEp} {totalEp ? `/ ${totalEp}` : ''}
+                            </p>
+                            
+                            <button
+                              onClick={() => handleIncrementEpisode(serie)}
+                              disabled={isFinished}
+                              className={`flex items-center justify-center p-1 rounded-full transition-colors active:scale-90 ${
+                                isFinished ? 'text-gray-300 dark:text-gray-600 cursor-not-allowed' : 'text-blue-500 hover:bg-blue-100 dark:hover:bg-blue-900/50'
+                              }`}
+                            >
+                              <PlusCircle size={18} />
+                            </button>
+                          </div>
+
+                          {/* BARRA DE PROGRESO */}
+                          {totalEp > 0 && (
+                            <div className="w-full bg-gray-100 dark:bg-gray-800 rounded-full h-1.5 mt-2 overflow-hidden">
+                              <div 
+                                className={`h-1.5 rounded-full transition-all duration-500 ease-out ${isFinished ? 'bg-green-500' : 'bg-blue-500'}`} 
+                                style={{ width: `${progressPercent}%` }}
+                              ></div>
+                            </div>
+                          )}
+                        </div>
+                        
+                        <div className="flex items-center justify-between mt-3">
+                          <span className={`text-[10px] uppercase font-bold px-2 py-1 rounded-full ${getStatusColor(serie.status)}`}>
+                            {serie.status.replace('-', ' ')}
+                          </span>
+                          {serie.score && (
+                            <span className="text-sm font-bold bg-yellow-100 text-yellow-800 dark:bg-yellow-900 dark:text-yellow-200 px-2 py-1 rounded-md">
+                              ★ {serie.score}/10
+                            </span>
+                          )}
+                        </div>
+                      </div>
+                    </div>
+                  );
+                }
+
+                // ---------------------------------
+                // RENDERIZADO: MODO CUADRÍCULA (GRID)
+                // ---------------------------------
                 return (
-                  <div key={serie.id} className="flex gap-4 p-3 bg-white dark:bg-gray-900 rounded-xl shadow-sm border border-gray-100 dark:border-gray-800 relative group">
-                    <div className="absolute top-2 right-2 flex gap-2">
-                      <button onClick={() => setEditingSerie(serie)} className="p-1.5 bg-gray-100 dark:bg-gray-800 text-gray-600 dark:text-gray-300 rounded-md hover:text-blue-600 transition-colors"><Edit2 size={16} /></button>
-                      <button onClick={() => handleDelete(serie.id)} className="p-1.5 bg-gray-100 dark:bg-gray-800 text-gray-600 dark:text-gray-300 rounded-md hover:text-red-600 transition-colors"><Trash2 size={16} /></button>
+                  <div key={serie.id} className="flex flex-col bg-white dark:bg-gray-900 rounded-2xl shadow-sm border border-gray-100 dark:border-gray-800 overflow-hidden relative group animate-in fade-in zoom-in-95 duration-200">
+                    
+                    {/* Botones de acción flotantes para grid */}
+                    <div className="absolute top-2 right-2 flex flex-col gap-1.5 z-10 opacity-0 group-hover:opacity-100 transition-opacity">
+                      <button onClick={() => setEditingSerie(serie)} className="p-1.5 bg-black/60 backdrop-blur-sm text-white rounded-full hover:bg-blue-500 transition-colors"><Edit2 size={14} /></button>
+                      <button onClick={() => handleDelete(serie.id)} className="p-1.5 bg-black/60 backdrop-blur-sm text-white rounded-full hover:bg-red-500 transition-colors"><Trash2 size={14} /></button>
                     </div>
 
-                    <div className="w-24 h-36 shrink-0 bg-gray-200 dark:bg-gray-800 rounded-lg overflow-hidden flex items-center justify-center relative">
+                    <div className="w-full aspect-[2/3] relative bg-gray-200 dark:bg-gray-800 flex items-center justify-center">
                       {serie.coverUrl ? (
                         <img src={serie.coverUrl} alt={serie.title} className="w-full h-full object-cover" />
                       ) : (
-                        <Tv className="text-gray-400" size={32} />
+                        <Tv className="text-gray-400 opacity-50" size={40} />
                       )}
                       
-                      {/* Etiqueta de "En Emisión" */}
+                      {serie.score && (
+                        <div className="absolute top-2 left-2 bg-black/70 backdrop-blur-sm text-white text-xs font-bold px-2 py-1 rounded-lg">
+                          ★ {serie.score}
+                        </div>
+                      )}
+
                       {serie.releaseStatus === 'emision' && (
                         <div className="absolute bottom-0 left-0 right-0 bg-red-600/90 text-white text-[9px] font-bold text-center py-1 uppercase tracking-wider backdrop-blur-sm">
                           En Emisión
@@ -275,47 +372,29 @@ export default function SeriesPage() {
                       )}
                     </div>
                     
-                    <div className="flex flex-col flex-grow justify-between py-1 pr-14">
-                      <div>
-                        <h3 className="font-bold text-lg leading-tight mb-1 line-clamp-2">{serie.title}</h3>
-                        {serie.director && <p className="text-sm text-gray-600 dark:text-gray-400 line-clamp-1">{serie.director}</p>}
-                        
-                        <div className="flex items-center gap-2 mt-1">
-                          <p className={`text-sm font-medium ${isFinished ? 'text-green-600 dark:text-green-400' : 'text-blue-600 dark:text-blue-500'}`}>
-                            {serie.currentSeason ? `T${serie.currentSeason} • ` : ''} 
-                            Ep. {currentEp} {totalEp ? `/ ${totalEp}` : ''}
-                          </p>
-                          
+                    <div className="p-3 flex flex-col flex-grow justify-between gap-2">
+                      <h3 className="font-bold text-sm leading-tight line-clamp-2" title={serie.title}>{serie.title}</h3>
+                      
+                      <div className="mt-auto space-y-2">
+                        <div className="flex items-center justify-between bg-gray-50 dark:bg-gray-800/50 rounded-lg p-1.5 border border-gray-100 dark:border-gray-700/50">
+                          <span className={`text-xs font-bold px-1 ${isFinished ? 'text-green-600 dark:text-green-400' : 'text-blue-600 dark:text-blue-400'}`}>
+                            {currentEp} {totalEp ? `/ ${totalEp}` : ''}
+                          </span>
                           <button
                             onClick={() => handleIncrementEpisode(serie)}
                             disabled={isFinished}
-                            className={`flex items-center justify-center p-1 rounded-full transition-colors active:scale-90 ${
-                              isFinished ? 'text-gray-300 dark:text-gray-600 cursor-not-allowed' : 'text-blue-500 hover:bg-blue-100 dark:hover:bg-blue-900/50'
+                            className={`p-1 rounded-md transition-colors ${
+                              isFinished ? 'text-gray-400 cursor-not-allowed' : 'bg-blue-100 text-blue-600 dark:bg-blue-900/40 dark:text-blue-400 hover:bg-blue-200'
                             }`}
                           >
-                            <PlusCircle size={18} />
+                            <PlusCircle size={16} />
                           </button>
                         </div>
-
-                        {/* BARRA DE PROGRESO */}
+                        
                         {totalEp > 0 && (
-                          <div className="w-full bg-gray-100 dark:bg-gray-800 rounded-full h-1.5 mt-2 overflow-hidden">
-                            <div 
-                              className={`h-1.5 rounded-full transition-all duration-500 ease-out ${isFinished ? 'bg-green-500' : 'bg-blue-500'}`} 
-                              style={{ width: `${progressPercent}%` }}
-                            ></div>
+                          <div className="w-full bg-gray-200 dark:bg-gray-700 rounded-full h-1 overflow-hidden">
+                            <div className={`h-1 rounded-full ${isFinished ? 'bg-green-500' : 'bg-blue-500'}`} style={{ width: `${progressPercent}%` }}></div>
                           </div>
-                        )}
-                      </div>
-                      
-                      <div className="flex items-center justify-between mt-3">
-                        <span className={`text-[10px] uppercase font-bold px-2 py-1 rounded-full ${getStatusColor(serie.status)}`}>
-                          {serie.status.replace('-', ' ')}
-                        </span>
-                        {serie.score && (
-                          <span className="text-sm font-bold bg-yellow-100 text-yellow-800 dark:bg-yellow-900 dark:text-yellow-200 px-2 py-1 rounded-md">
-                            ★ {serie.score}/10
-                          </span>
                         )}
                       </div>
                     </div>
@@ -324,9 +403,11 @@ export default function SeriesPage() {
               })}
               
               {hasMore && (
-                <button onClick={handleLoadMore} className="w-full py-3 mt-4 text-sm font-medium text-gray-600 bg-gray-100 rounded-xl hover:bg-gray-200 transition-colors">
-                  Cargar más
-                </button>
+                <div className={viewMode === 'grid' ? "col-span-full" : "w-full"}>
+                  <button onClick={handleLoadMore} className="w-full py-3 mt-2 text-sm font-medium text-gray-600 bg-gray-100 rounded-xl hover:bg-gray-200 transition-colors">
+                    Cargar más
+                  </button>
+                </div>
               )}
             </>
           )}

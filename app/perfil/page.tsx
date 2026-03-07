@@ -2,7 +2,7 @@
 "use client";
 
 import { useState, useEffect, useMemo, useRef } from 'react';
-import { User, LogOut, BarChart3, CheckCircle2, PlayCircle, Film, Tv, PlaySquare, BookOpen, MonitorPlay, ScrollText, Edit2, X, Save, Sun, Moon, Monitor, Download, Upload, DatabaseBackup } from 'lucide-react';
+import { User, LogOut, BarChart3, CheckCircle2, PlayCircle, Film, Tv, PlaySquare, BookOpen, MonitorPlay, ScrollText, Edit2, X, Save, Sun, Moon, Monitor, Download, Upload, DatabaseBackup, Star } from 'lucide-react';
 import { collection, query, where, onSnapshot, writeBatch, doc } from 'firebase/firestore';
 import { signOut, updateProfile } from 'firebase/auth';
 import { auth, db } from '@/lib/firebase';
@@ -14,7 +14,8 @@ import { useTheme } from 'next-themes';
 export default function PerfilPage() {
   const { user } = useAuth();
   const { theme, setTheme } = useTheme();
-  const [entries, setEntries] = useState<MediaEntry[]>([]);
+  // Cambiamos a any[] para que acepte la nueva propiedad isFavorite y score si vienen
+  const [entries, setEntries] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
 
   // Referencia para el input de archivo oculto (para importar)
@@ -40,8 +41,8 @@ export default function PerfilPage() {
     if (!user) return;
     const q = query(collection(db, 'entries'), where('userId', '==', user.uid));
     const unsubscribe = onSnapshot(q, (querySnapshot) => {
-      const data: MediaEntry[] = [];
-      querySnapshot.forEach((docSnap) => data.push({ id: docSnap.id, ...docSnap.data() } as MediaEntry));
+      const data: any[] = [];
+      querySnapshot.forEach((docSnap) => data.push({ id: docSnap.id, ...docSnap.data() }));
       setEntries(data);
       setLoading(false);
     });
@@ -76,34 +77,26 @@ export default function PerfilPage() {
     }
   };
 
-  // --- NUEVO: FUNCIÓN PARA EXPORTAR ---
+  // Exportar Data
   const handleExportData = () => {
     if (entries.length === 0) {
       toast.error('No tienes datos para exportar.');
       return;
     }
-    
-    // Convertimos las entradas a un texto JSON bonito
     const dataStr = JSON.stringify(entries, null, 2);
-    // Creamos un "archivo" temporal en el navegador
     const blob = new Blob([dataStr], { type: 'application/json' });
     const url = URL.createObjectURL(blob);
-    
-    // Simulamos un clic en un enlace de descarga
     const link = document.createElement('a');
     link.href = url;
-    // Nombre del archivo con la fecha actual
     link.download = `harimedia_backup_${new Date().toISOString().split('T')[0]}.json`;
     document.body.appendChild(link);
     link.click();
-    
-    // Limpieza
     document.body.removeChild(link);
     URL.revokeObjectURL(url);
     toast.success('Copia de seguridad descargada con éxito');
   };
 
-  // --- NUEVO: FUNCIÓN PARA IMPORTAR ---
+  // Importar Data
   const handleImportData = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file || !user) return;
@@ -111,41 +104,25 @@ export default function PerfilPage() {
     const reader = new FileReader();
     reader.onload = async (event) => {
       try {
-        // Leemos e intentamos transformar el texto a JSON
         const importedData = JSON.parse(event.target?.result as string);
-        
-        if (!Array.isArray(importedData)) {
-          throw new Error('El archivo no tiene el formato correcto.');
-        }
+        if (!Array.isArray(importedData)) throw new Error('El archivo no tiene el formato correcto.');
 
         setIsRestoring(true);
         toast.info('Importando datos, por favor espera...');
 
-        // Usamos un "Lote" (Batch) para subir todo a Firebase de un solo golpe
         const batch = writeBatch(db);
         let count = 0;
 
         importedData.forEach((item: any) => {
-          // Validación básica: al menos debe tener un título y un tipo
           if (!item.title || !item.type) return; 
-          
-          // Creamos una referencia para un nuevo documento vacío
           const newDocRef = doc(collection(db, 'entries'));
-          
-          // Le quitamos el ID viejo al item para evitar conflictos,
-          // y le forzamos TU userId actual (por si te pasaste el json de otra cuenta)
           const { id, userId, ...dataToSave } = item;
-          
-          batch.set(newDocRef, {
-            ...dataToSave,
-            userId: user.uid,
-            updatedAt: Date.now()
-          });
+          batch.set(newDocRef, { ...dataToSave, userId: user.uid, updatedAt: Date.now() });
           count++;
         });
 
         if (count > 0) {
-          await batch.commit(); // Ejecutamos la subida masiva
+          await batch.commit();
           toast.success(`¡Se han restaurado ${count} obras a tu bitácora!`);
         } else {
           toast.error('No se encontraron obras válidas en el archivo.');
@@ -156,12 +133,9 @@ export default function PerfilPage() {
         toast.error('Error al leer el archivo. ¿Seguro que es un backup de Harimedia?');
       } finally {
         setIsRestoring(false);
-        // Reseteamos el input para poder volver a seleccionar el mismo archivo si es necesario
         if (fileInputRef.current) fileInputRef.current.value = '';
       }
     };
-    
-    // Disparamos la lectura del archivo como texto
     reader.readAsText(file);
   };
 
@@ -181,6 +155,11 @@ export default function PerfilPage() {
     };
 
     return { total, completados, viendo, porTipo };
+  }, [entries]);
+
+  // --- FILTRO DE FAVORITOS ---
+  const favorites = useMemo(() => {
+    return entries.filter(entry => entry.isFavorite === true);
   }, [entries]);
 
   if (loading) {
@@ -269,7 +248,39 @@ export default function PerfilPage() {
         </div>
       </div>
 
-      {/* 3. SELECTOR DE TEMA */}
+      {/* 3. SALÓN DE LA FAMA (FAVORITOS) */}
+      {favorites.length > 0 && (
+        <div className="mb-8">
+          <h2 className="text-lg font-bold mb-4 flex items-center gap-2">
+            <Star size={20} className="text-yellow-500" fill="currentColor" /> Salón de la Fama
+          </h2>
+          
+          <div className="flex overflow-x-auto gap-4 pb-4 snap-x hide-scrollbar">
+            {favorites.map((fav) => (
+              <div key={fav.id} className="snap-start shrink-0 w-32 flex flex-col gap-2">
+                <div className="w-32 h-48 bg-gray-200 dark:bg-gray-800 rounded-2xl overflow-hidden relative shadow-sm border border-gray-100 dark:border-gray-800">
+                  {fav.coverUrl ? (
+                    <img src={fav.coverUrl} alt={fav.title} className="w-full h-full object-cover" />
+                  ) : (
+                    <div className="w-full h-full flex items-center justify-center"><Star className="text-gray-400" /></div>
+                  )}
+                  {fav.score && (
+                    <div className="absolute top-2 right-2 bg-black/70 backdrop-blur-sm text-white text-xs font-bold px-2 py-1 rounded-lg">
+                      ★ {fav.score}
+                    </div>
+                  )}
+                </div>
+                <div>
+                  <h3 className="font-bold text-sm line-clamp-1 px-1">{fav.title}</h3>
+                  <span className="text-[10px] text-gray-500 font-semibold uppercase px-1">{fav.type}</span>
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+
+      {/* 4. SELECTOR DE TEMA */}
       <div className="mb-8">
         <h2 className="text-lg font-bold mb-4">Apariencia</h2>
         <div className="bg-white dark:bg-gray-900 p-2 rounded-2xl shadow-sm border border-gray-100 dark:border-gray-800 flex items-center justify-between">
@@ -285,50 +296,34 @@ export default function PerfilPage() {
         </div>
       </div>
 
-      {/* 4. RESPALDO DE DATOS (NUEVO) */}
+      {/* 5. RESPALDO DE DATOS */}
       <div className="mb-8">
         <h2 className="text-lg font-bold mb-4 flex items-center gap-2">
           <DatabaseBackup size={20} className="text-emerald-500" /> Respaldo de Datos
         </h2>
         <div className="bg-white dark:bg-gray-900 p-2 rounded-2xl shadow-sm border border-gray-100 dark:border-gray-800 flex items-center justify-between">
-          
           <button 
             onClick={handleExportData}
             className="flex-1 flex items-center justify-center gap-2 py-2.5 rounded-xl text-sm font-medium text-gray-600 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-800 transition-colors"
           >
-            <Download size={18} className="text-blue-500" />
-            Descargar JSON
+            <Download size={18} className="text-blue-500" /> Descargar JSON
           </button>
-          
-          {/* Input oculto para subir archivos */}
-          <input 
-            type="file" 
-            accept=".json" 
-            ref={fileInputRef} 
-            onChange={handleImportData} 
-            className="hidden" 
-          />
-
+          <input type="file" accept=".json" ref={fileInputRef} onChange={handleImportData} className="hidden" />
           <button 
             onClick={() => fileInputRef.current?.click()}
             disabled={isRestoring}
             className="flex-1 flex items-center justify-center gap-2 py-2.5 rounded-xl text-sm font-medium text-gray-600 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-800 transition-colors disabled:opacity-50"
           >
-            {isRestoring ? (
-              <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-emerald-500"></div>
-            ) : (
-              <Upload size={18} className="text-emerald-500" />
-            )}
+            {isRestoring ? <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-emerald-500"></div> : <Upload size={18} className="text-emerald-500" />}
             Restaurar
           </button>
-
         </div>
         <p className="text-xs text-gray-500 mt-3 text-center px-4">
-          Descarga un archivo .json con toda tu información o restaura una copia anterior. La restauración sumará los títulos a los que ya tienes.
+          Descarga un archivo .json con toda tu información o restaura una copia anterior.
         </p>
       </div>
 
-      {/* 5. TU COLECCIÓN */}
+      {/* 6. TU COLECCIÓN */}
       <div className="mb-8">
         <h2 className="text-lg font-bold mb-4">Tu Colección</h2>
         <div className="bg-white dark:bg-gray-900 rounded-2xl shadow-sm border border-gray-100 dark:border-gray-800 overflow-hidden">

@@ -7,7 +7,7 @@ import { db } from '@/lib/firebase';
 import { useAuth } from '@/context/AuthContext';
 import { MediaType, MediaStatus } from '@/types';
 import { toast } from 'sonner';
-import { Image as ImageIcon } from 'lucide-react'; // <-- Importamos un icono para la vista previa
+import { Image as ImageIcon, Heart } from 'lucide-react'; // <-- Importamos el Corazón
 
 interface MediaFormProps {
   type: MediaType;
@@ -39,6 +39,9 @@ export default function MediaForm({ type, onSuccess, onCancel, initialData }: Me
   const [year, setYear] = useState<number | ''>(initialData?.year || '');
   const [genre, setGenre] = useState(initialData?.genre || '');
 
+  // --- ESTADO PARA FAVORITOS ---
+  const [isFavorite, setIsFavorite] = useState(initialData?.isFavorite || false);
+
   const isEpisodic = ['serie', 'anime', 'caricatura'].includes(type);
   const isReading = ['manga', 'manhwa'].includes(type);
   const showExtraFields = type !== 'manhwa';
@@ -59,6 +62,7 @@ export default function MediaForm({ type, onSuccess, onCancel, initialData }: Me
         score: score === '' ? null : Number(score),
         coverUrl,
         review,
+        isFavorite, // <-- Guardamos si es favorito en la base de datos
         updatedAt: Date.now(),
       };
 
@@ -101,8 +105,23 @@ export default function MediaForm({ type, onSuccess, onCancel, initialData }: Me
   };
 
   return (
-    <div className="bg-white dark:bg-gray-900 p-6 rounded-2xl shadow-lg border border-gray-100 dark:border-gray-800">
-      <h3 className="text-xl font-bold mb-4 capitalize">
+    <div className="bg-white dark:bg-gray-900 p-6 rounded-2xl shadow-lg border border-gray-100 dark:border-gray-800 relative">
+      
+      {/* --- BOTÓN DE FAVORITO EN LA ESQUINA --- */}
+      <button
+        type="button"
+        onClick={() => setIsFavorite(!isFavorite)}
+        className="absolute top-5 right-5 p-2 rounded-full transition-all duration-300 hover:scale-110 active:scale-95"
+        title="Añadir a Favoritos"
+      >
+        <Heart 
+          size={26} 
+          className={isFavorite ? "text-red-500" : "text-gray-300 dark:text-gray-600"} 
+          fill={isFavorite ? "currentColor" : "none"} 
+        />
+      </button>
+
+      <h3 className="text-xl font-bold mb-4 capitalize pr-10">
         {isEditing ? `Editar ${type}` : `Agregar ${type}`}
       </h3>
       
@@ -117,7 +136,6 @@ export default function MediaForm({ type, onSuccess, onCancel, initialData }: Me
                 alt="Vista previa" 
                 className="w-full h-full object-cover"
                 onError={(e) => {
-                  // Si la URL falla, ocultamos la imagen
                   e.currentTarget.style.display = 'none';
                 }} 
               />
@@ -172,7 +190,7 @@ export default function MediaForm({ type, onSuccess, onCancel, initialData }: Me
           </div>
         </div>
 
-        {/* --- NUEVA SECCIÓN DE PROGRESO Y EMISIÓN --- */}
+        {/* --- SECCIÓN DE PROGRESO Y EMISIÓN --- */}
         {(isEpisodic || isReading) && (
           <div className="p-3 bg-gray-50 dark:bg-gray-800/50 rounded-xl border border-gray-200 dark:border-gray-700 space-y-4 mt-2">
             <div className="grid grid-cols-2 gap-4">
