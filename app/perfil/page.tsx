@@ -2,7 +2,7 @@
 "use client";
 
 import { useState, useEffect, useMemo, useRef } from 'react';
-import { User, LogOut, BarChart3, CheckCircle2, PlayCircle, Film, Tv, PlaySquare, BookOpen, MonitorPlay, ScrollText, Edit2, X, Save, Sun, Moon, Monitor, Download, Upload, DatabaseBackup, Star } from 'lucide-react';
+import { User, LogOut, BarChart3, CheckCircle2, PlayCircle, Film, Tv, PlaySquare, BookOpen, MonitorPlay, ScrollText, Edit2, X, Save, Sun, Moon, Monitor, Download, Upload, DatabaseBackup, Star, PieChart as PieChartIcon } from 'lucide-react';
 import { collection, query, where, onSnapshot, writeBatch, doc } from 'firebase/firestore';
 import { signOut, updateProfile } from 'firebase/auth';
 import { auth, db } from '@/lib/firebase';
@@ -10,6 +10,9 @@ import { useAuth } from '@/context/AuthContext';
 import { MediaEntry } from '@/types';
 import { toast } from 'sonner';
 import { useTheme } from 'next-themes';
+
+// --- IMPORTACIONES PARA GRÁFICOS (RECHARTS) ---
+import { PieChart, Pie, Cell, BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer } from 'recharts';
 
 export default function PerfilPage() {
   const { user } = useAuth();
@@ -157,6 +160,38 @@ export default function PerfilPage() {
     return { total, completados, viendo, porTipo };
   }, [entries]);
 
+  // --- LÓGICA DE DATOS PARA LAS GRÁFICAS ---
+  const chartData = useMemo(() => {
+    // Para Anillo (Estados)
+    const statusCounts = { completado: 0, viendo: 0, plan: 0, pausa: 0, abandonado: 0 };
+    // Para Barras (Calificaciones 1 al 10)
+    const scoreCounts: Record<number, number> = { 1:0, 2:0, 3:0, 4:0, 5:0, 6:0, 7:0, 8:0, 9:0, 10:0 };
+
+    entries.forEach(e => {
+      if (e.status && statusCounts[e.status as keyof typeof statusCounts] !== undefined) {
+        statusCounts[e.status as keyof typeof statusCounts]++;
+      }
+      if (e.score && e.score >= 1 && e.score <= 10) {
+        scoreCounts[e.score]++;
+      }
+    });
+
+    const statusArray = [
+      { name: 'Viendo', value: statusCounts.viendo, color: '#22c55e' }, 
+      { name: 'Completado', value: statusCounts.completado, color: '#3b82f6' }, 
+      { name: 'Planear', value: statusCounts.plan, color: '#94a3b8' }, 
+      { name: 'En Pausa', value: statusCounts.pausa, color: '#eab308' }, 
+      { name: 'Abandonado', value: statusCounts.abandonado, color: '#ef4444' },
+    ].filter(d => d.value > 0); 
+
+    const scoreArray = Object.keys(scoreCounts).map(score => ({
+      nota: `${score}`,
+      cantidad: scoreCounts[Number(score)]
+    }));
+
+    return { statusArray, scoreArray };
+  }, [entries]);
+
   // --- FILTRO DE FAVORITOS ---
   const favorites = useMemo(() => {
     return entries.filter(entry => entry.isFavorite === true);
@@ -169,6 +204,11 @@ export default function PerfilPage() {
       </div>
     );
   }
+
+  // Colores para que las gráficas se vean bien en modo oscuro y claro
+  const tooltipBg = theme === 'dark' ? '#1f2937' : '#ffffff';
+  const tooltipColor = theme === 'dark' ? '#f3f4f6' : '#111827';
+  const axisColor = theme === 'dark' ? '#9ca3af' : '#6b7280';
 
   return (
     <div className="p-5 pb-24">
@@ -247,6 +287,69 @@ export default function PerfilPage() {
           </div>
         </div>
       </div>
+
+      {/* --- GRÁFICAS DE ESTADÍSTICAS AVANZADAS --- */}
+      {entries.length > 0 && (
+        <div className="mb-8 space-y-4">
+          <h2 className="text-lg font-bold mb-4 flex items-center gap-2">
+            <PieChartIcon size={20} className="text-indigo-500" /> Análisis de Consumo
+          </h2>
+          
+          <div className="bg-white dark:bg-gray-900 p-4 rounded-2xl shadow-sm border border-gray-100 dark:border-gray-800">
+            <h3 className="text-sm font-semibold text-gray-500 uppercase mb-4 text-center">Estado de tus Obras</h3>
+            <div className="h-48 w-full">
+              <ResponsiveContainer width="100%" height="100%">
+                <PieChart>
+                  <Pie
+                    data={chartData.statusArray}
+                    cx="50%"
+                    cy="50%"
+                    innerRadius={50}
+                    outerRadius={80}
+                    paddingAngle={5}
+                    dataKey="value"
+                    stroke="none"
+                  >
+                    {chartData.statusArray.map((entry, index) => (
+                      <Cell key={`cell-${index}`} fill={entry.color} />
+                    ))}
+                  </Pie>
+                  <Tooltip 
+                    contentStyle={{ backgroundColor: tooltipBg, borderRadius: '12px', border: 'none', color: tooltipColor, boxShadow: '0 4px 6px -1px rgb(0 0 0 / 0.1)' }}
+                    itemStyle={{ color: tooltipColor, fontWeight: 'bold' }}
+                  />
+                </PieChart>
+              </ResponsiveContainer>
+            </div>
+            <div className="flex flex-wrap justify-center gap-3 mt-2">
+              {chartData.statusArray.map((entry, idx) => (
+                <div key={idx} className="flex items-center gap-1.5 text-xs font-medium text-gray-600 dark:text-gray-300">
+                  <span className="w-3 h-3 rounded-full" style={{ backgroundColor: entry.color }}></span>
+                  {entry.name} ({entry.value})
+                </div>
+              ))}
+            </div>
+          </div>
+
+          <div className="bg-white dark:bg-gray-900 p-4 rounded-2xl shadow-sm border border-gray-100 dark:border-gray-800">
+            <h3 className="text-sm font-semibold text-gray-500 uppercase mb-4 text-center">Tus Calificaciones (1-10)</h3>
+            <div className="h-48 w-full">
+              <ResponsiveContainer width="100%" height="100%">
+                <BarChart data={chartData.scoreArray} margin={{ top: 0, right: 0, left: -25, bottom: 0 }}>
+                  <XAxis dataKey="nota" axisLine={false} tickLine={false} tick={{ fill: axisColor, fontSize: 12 }} />
+                  <YAxis allowDecimals={false} axisLine={false} tickLine={false} tick={{ fill: axisColor, fontSize: 12 }} />
+                  <Tooltip 
+                    cursor={{ fill: theme === 'dark' ? '#374151' : '#f3f4f6' }}
+                    contentStyle={{ backgroundColor: tooltipBg, borderRadius: '12px', border: 'none', color: tooltipColor, boxShadow: '0 4px 6px -1px rgb(0 0 0 / 0.1)' }}
+                    labelStyle={{ display: 'none' }}
+                  />
+                  <Bar dataKey="cantidad" fill="#6366f1" radius={[4, 4, 0, 0]} />
+                </BarChart>
+              </ResponsiveContainer>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* 3. SALÓN DE LA FAMA (FAVORITOS) */}
       {favorites.length > 0 && (
