@@ -2,8 +2,7 @@
 "use client";
 
 import { useState, useEffect, useMemo, useRef } from 'react';
-import { User, LogOut, BarChart3, CheckCircle2, PlayCircle, Film, Tv, PlaySquare, BookOpen, MonitorPlay, ScrollText, Edit2, X, Save, Sun, Moon, Monitor, Download, Upload, DatabaseBackup, Star, PieChart as PieChartIcon } from 'lucide-react';
-import { collection, query, where, onSnapshot, writeBatch, doc } from 'firebase/firestore';
+import { User, LogOut, BarChart3, CheckCircle2, PlayCircle, Film, Tv, PlaySquare, BookOpen, MonitorPlay, ScrollText, Edit2, X, Save, Sun, Moon, Monitor, Download, Upload, DatabaseBackup, Star, PieChart as PieChartIcon, Palette, Library } from 'lucide-react';import { collection, query, where, onSnapshot, writeBatch, doc } from 'firebase/firestore';
 import { signOut, updateProfile } from 'firebase/auth';
 import { auth, db } from '@/lib/firebase';
 import { useAuth } from '@/context/AuthContext';
@@ -353,8 +352,8 @@ export default function PerfilPage() {
       {/* 3. FAVORITOS - DISEÑO FLUIDO DE BORDE A BORDE */}
       {favorites.length > 0 && (
         <div className="mb-8">
-          <h2 className="text-lg font-bold mb-4">
-            <PieChartIcon size={20} className="text-indigo-500" /> Favoritos
+          <h2 className="text-lg font-bold mb-4 flex items-center gap-2">
+            <Star size={20} className="text-yellow-500" fill="currentColor" /> Favoritos
           </h2>
           
           <div className="flex overflow-x-auto gap-4 pb-4 px-5 -mx-5 snap-x hide-scrollbar">
@@ -387,7 +386,9 @@ export default function PerfilPage() {
 
       {/* 4. SELECTOR DE TEMA */}
       <div className="mb-8">
-        <h2 className="text-lg font-bold mb-4">Apariencia</h2>
+        <h2 className="text-lg font-bold mb-4 flex items-center gap-2">
+          <Palette size={20} className="text-pink-500" /> Apariencia
+        </h2>
         <div className="bg-white dark:bg-gray-900 p-2 rounded-2xl shadow-sm border border-gray-100 dark:border-gray-800 flex items-center justify-between">
           <button onClick={() => setTheme('light')} className={`flex-1 flex items-center justify-center gap-2 py-2.5 rounded-xl text-sm font-medium transition-all ${theme === 'light' ? 'bg-gray-100 dark:bg-gray-800 shadow-sm text-gray-900 dark:text-white' : 'text-gray-500 hover:text-gray-700'}`}>
             <Sun size={18} /> Claro
@@ -430,7 +431,9 @@ export default function PerfilPage() {
 
       {/* 6. TU COLECCIÓN */}
       <div className="mb-8">
-        <h2 className="text-lg font-bold mb-4">Tu Colección</h2>
+        <h2 className="text-lg font-bold mb-4 flex items-center gap-2">
+  <Library size={20} className="text-indigo-500" /> Tu Colección
+</h2>
         <div className="bg-white dark:bg-gray-900 rounded-2xl shadow-sm border border-gray-100 dark:border-gray-800 overflow-hidden">
           <div className="flex items-center justify-between p-4 border-b border-gray-100 dark:border-gray-800">
             <div className="flex items-center gap-3"><div className="p-2 bg-red-100 dark:bg-red-900/30 text-red-600 dark:text-red-400 rounded-lg"><Film size={18} /></div><span className="font-medium">Películas</span></div>
