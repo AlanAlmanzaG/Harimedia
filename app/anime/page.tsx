@@ -10,15 +10,14 @@ import { toast } from 'sonner';
 import { collection, query, where, orderBy, onSnapshot, doc, deleteDoc, updateDoc } from 'firebase/firestore';
 import { db } from '@/lib/firebase';
 import { useAuth } from '@/context/AuthContext';
-import { Episodic, MediaStatus } from '@/types';
+import { MediaStatus } from '@/types';
 
 export default function AnimePage() {
   const { user } = useAuth();
-  
-  const [animeList, setAnimeList] = useState<Episodic[]>([]);
+  const [animeList, setAnimeList] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [showForm, setShowForm] = useState(false);
-  const [editingAnime, setEditingAnime] = useState<Episodic | null>(null);
+  const [editingAnime, setEditingAnime] = useState<any | null>(null);
 
   const [searchTerm, setSearchTerm] = useState('');
   const [statusFilter, setStatusFilter] = useState<MediaStatus | 'todos'>('todos');
@@ -28,80 +27,64 @@ export default function AnimePage() {
 
   useEffect(() => {
     if (!user) return;
-
-    const q = query(
-      collection(db, 'entries'),
-      where('userId', '==', user.uid),
-      where('type', '==', 'anime'),
-      orderBy('createdAt', 'desc')
-    );
-
+    const q = query(collection(db, 'entries'), where('userId', '==', user.uid), where('type', '==', 'anime'), orderBy('createdAt', 'desc'));
     const unsubscribe = onSnapshot(q, (querySnapshot) => {
-      const data: Episodic[] = [];
-      querySnapshot.forEach((doc) => {
-        data.push({ id: doc.id, ...doc.data() } as Episodic);
-      });
+      const data: any[] = [];
+      querySnapshot.forEach((doc) => data.push({ id: doc.id, ...doc.data() }));
       setAnimeList(data);
       setLoading(false);
-    }, (error) => {
-      console.error("Error obteniendo anime: ", error);
-      setLoading(false);
     });
-
     return () => unsubscribe();
   }, [user]);
 
   const handleDelete = async (id: string | undefined) => {
     if (!id) return;
-    if (window.confirm('¿Estás seguro de que deseas eliminar este anime de tu bitácora?')) {
+    if (window.confirm('¿Estás seguro de que deseas eliminar este anime?')) {
       try {
         await deleteDoc(doc(db, 'entries', id));
-        toast.success('Eliminado correctamente'); // <-- Notificación
+        toast.success('Anime eliminado correctamente');
       } catch (error) {
-        console.error("Error al eliminar:", error);
-        toast.error('Hubo un error al eliminar. Inténtalo de nuevo.'); // <-- Notificación
+        toast.error('Hubo un error al eliminar.');
       }
     }
   };
 
-  const handleIncrementEpisode = async (id: string | undefined, currentEp: number = 0) => {
-    if (!id) return;
-    try {
-      const docRef = doc(db, 'entries', id);
-      await updateDoc(docRef, {
-        currentEpisode: currentEp + 1,
-        updatedAt: Date.now()
-      });
-    } catch (error) {
-      console.error("Error al incrementar episodio:", error);
-    }
-  };
+  const handleIncrementEpisode = async (anime: any) => {
+    if (!anime.id) return;
+    const currentEp = anime.currentEpisode || 0;
+    const totalEp = anime.totalProgress;
 
-  const handleCloseForm = () => {
-    setShowForm(false);
-    setEditingAnime(null);
+    if (totalEp && currentEp >= totalEp) {
+      toast.info('¡Ya llegaste al episodio final!');
+      return;
+    }
+
+    try {
+      const docRef = doc(db, 'entries', anime.id);
+      const newData: any = { currentEpisode: currentEp + 1, updatedAt: Date.now() };
+
+      if (totalEp && currentEp + 1 === totalEp) {
+        newData.status = 'completado';
+        toast.success('¡Felicidades, terminaste este anime!', { duration: 4000 });
+      }
+
+      await updateDoc(docRef, newData);
+    } catch (error) {
+      toast.error('Error al actualizar el episodio');
+    }
   };
 
   const filteredAndSortedAnime = useMemo(() => {
     return animeList
-      .filter((anime) => {
-        const matchesSearch = anime.title.toLowerCase().includes(searchTerm.toLowerCase()) || 
-                              (anime.director && anime.director.toLowerCase().includes(searchTerm.toLowerCase()));
-        const matchesStatus = statusFilter === 'todos' || anime.status === statusFilter;
-        return matchesSearch && matchesStatus;
-      })
+      .filter((a) => (statusFilter === 'todos' || a.status === statusFilter) && a.title.toLowerCase().includes(searchTerm.toLowerCase()))
       .sort((a, b) => {
         if (sortBy === 'recientes') return b.createdAt - a.createdAt;
         if (sortBy === 'calificacion') return (b.score || 0) - (a.score || 0);
-        if (sortBy === 'alfabetico') return a.title.localeCompare(b.title);
-        return 0;
+        return a.title.localeCompare(b.title);
       });
   }, [animeList, searchTerm, statusFilter, sortBy]);
 
   const displayedAnime = filteredAndSortedAnime.slice(0, visibleCount);
-  const hasMore = visibleCount < filteredAndSortedAnime.length;
-
-  const handleLoadMore = () => setVisibleCount(prev => prev + 10);
 
   const getStatusColor = (status: string) => {
     switch (status) {
@@ -117,19 +100,12 @@ export default function AnimePage() {
     <div className="p-5">
       <header className="flex items-center justify-between mb-4 mt-2">
         <div className="flex items-center gap-3">
-          <Link href="/" className="p-2 -ml-2 rounded-full hover:bg-gray-200 dark:hover:bg-gray-800 transition-colors">
-            <ArrowLeft size={24} />
-          </Link>
+          <Link href="/" className="p-2 -ml-2 rounded-full hover:bg-gray-200 dark:hover:bg-gray-800 transition-colors"><ArrowLeft size={24} /></Link>
           <h1 className="text-2xl font-bold tracking-tight">Anime</h1>
         </div>
-        
         {!(showForm || editingAnime) && (
-          <button
-            onClick={() => setShowForm(true)}
-            className="flex items-center gap-1 bg-purple-500 text-white px-3 py-2 rounded-xl text-sm font-medium hover:bg-purple-600 transition-colors shadow-sm"
-          >
-            <Plus size={18} />
-            <span className="hidden sm:inline">Agregar</span>
+          <button onClick={() => setShowForm(true)} className="flex items-center gap-1 bg-blue-500 text-white px-3 py-2 rounded-xl text-sm font-medium hover:bg-blue-600 transition-colors shadow-sm">
+            <Plus size={18} /><span className="hidden sm:inline">Agregar</span>
           </button>
         )}
       </header>
@@ -138,136 +114,73 @@ export default function AnimePage() {
         <div className="mb-6 space-y-3">
           <div className="flex gap-2">
             <div className="relative flex-grow">
-              <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-                <Search size={18} className="text-gray-400" />
-              </div>
-              <input
-                type="text"
-                value={searchTerm}
-                onChange={(e) => {
-                  setSearchTerm(e.target.value);
-                  setVisibleCount(10);
-                }}
-                className="block w-full pl-10 pr-3 py-2 border border-gray-200 dark:border-gray-700 rounded-xl leading-5 bg-white dark:bg-gray-900 placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-purple-500 sm:text-sm transition-colors"
-                placeholder="Buscar anime o estudio..."
-              />
+              <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none"><Search size={18} className="text-gray-400" /></div>
+              <input type="text" value={searchTerm} onChange={(e) => setSearchTerm(e.target.value)} className="block w-full pl-10 pr-3 py-2 border border-gray-200 dark:border-gray-700 rounded-xl bg-white dark:bg-gray-900 outline-none" placeholder="Buscar anime..." />
             </div>
-            <button
-              onClick={() => setShowFilters(!showFilters)}
-              className={`p-2 rounded-xl border transition-colors flex items-center justify-center ${showFilters ? 'bg-purple-50 border-purple-200 text-purple-600 dark:bg-purple-900/30 dark:border-purple-800 dark:text-purple-400' : 'bg-white border-gray-200 text-gray-600 dark:bg-gray-900 dark:border-gray-700 dark:text-gray-300'}`}
-            >
+            <button onClick={() => setShowFilters(!showFilters)} className="p-2 rounded-xl border flex items-center justify-center bg-white dark:bg-gray-900 border-gray-200 dark:border-gray-700 text-gray-600 dark:text-gray-300">
               <SlidersHorizontal size={20} />
             </button>
           </div>
-
-          {showFilters && (
-            <div className="p-4 bg-white dark:bg-gray-900 rounded-xl border border-gray-100 dark:border-gray-800 shadow-sm grid grid-cols-2 gap-4 animate-in fade-in slide-in-from-top-2">
-              <div>
-                <label className="block text-xs font-semibold text-gray-500 uppercase tracking-wider mb-2">Estado</label>
-                <select
-                  value={statusFilter}
-                  onChange={(e) => setStatusFilter(e.target.value as any)}
-                  className="w-full text-sm rounded-lg border border-gray-200 dark:border-gray-700 bg-transparent px-3 py-2 focus:ring-2 focus:ring-purple-500 outline-none"
-                >
-                  <option className="bg-white dark:bg-gray-800" value="todos">Todos</option>
-                  <option className="bg-white dark:bg-gray-800" value="plan">Planear ver</option>
-                  <option className="bg-white dark:bg-gray-800" value="viendo">Viendo</option>
-                  <option className="bg-white dark:bg-gray-800" value="completado">Completado</option>
-                  <option className="bg-white dark:bg-gray-800" value="pausa">En pausa</option>
-                  <option className="bg-white dark:bg-gray-800" value="abandonado">Abandonado</option>
-                </select>
-              </div>
-              <div>
-                <label className="block text-xs font-semibold text-gray-500 uppercase tracking-wider mb-2">Ordenar por</label>
-                <select
-                  value={sortBy}
-                  onChange={(e) => setSortBy(e.target.value as any)}
-                  className="w-full text-sm rounded-lg border border-gray-200 dark:border-gray-700 bg-transparent px-3 py-2 focus:ring-2 focus:ring-purple-500 outline-none"
-                >
-                  <option className="bg-white dark:bg-gray-800" value="recientes">Recientes</option>
-                  <option className="bg-white dark:bg-gray-800" value="calificacion">Mejor Calificadas</option>
-                  <option className="bg-white dark:bg-gray-800" value="alfabetico">Alfabético (A-Z)</option>
-                </select>
-              </div>
-            </div>
-          )}
         </div>
       )}
 
       {(showForm || editingAnime) ? (
-        <div className="animate-in fade-in slide-in-from-bottom-4 duration-300">
-          <MediaForm 
-            key={editingAnime ? editingAnime.id : 'new-form'}
-            type="anime" 
-            initialData={editingAnime} 
-            onSuccess={handleCloseForm} 
-            onCancel={handleCloseForm} 
-          />
+        <div className="animate-in fade-in slide-in-from-bottom-4">
+          <MediaForm key={editingAnime ? editingAnime.id : 'new-form'} type="anime" initialData={editingAnime} onSuccess={() => { setShowForm(false); setEditingAnime(null); }} onCancel={() => { setShowForm(false); setEditingAnime(null); }} />
         </div>
       ) : (
-        <div className="space-y-4">
-          {loading ? (
-            <>
-              <SkeletonCard />
-              <SkeletonCard />
-              <SkeletonCard />
-              <SkeletonCard />
-            </>
-          ) : animeList.length === 0 ? (
-            <div className="mt-10 text-center">
-              <div className="inline-flex items-center justify-center w-16 h-16 rounded-full bg-gray-100 dark:bg-gray-800 mb-4">
-                <Plus size={32} className="text-gray-400" />
-              </div>
-              <h3 className="text-lg font-medium text-gray-900 dark:text-gray-100">Aún no hay anime</h3>
-              <p className="mt-1 text-sm text-gray-500 dark:text-gray-400">
-                Toca el botón de agregar para registrar tu primer anime.
-              </p>
-            </div>
+        <div className="space-y-4 pb-10">
+          {loading ? ( <><SkeletonCard /><SkeletonCard /><SkeletonCard /></> ) : animeList.length === 0 ? (
+            <div className="mt-10 text-center"><Plus size={32} className="mx-auto text-gray-400 mb-4" /><h3 className="text-lg font-medium">Aún no hay anime</h3></div>
           ) : (
             <>
-              {displayedAnime.map((anime) => (
-                <div key={anime.id} className="flex gap-4 p-3 bg-white dark:bg-gray-900 rounded-xl shadow-sm border border-gray-100 dark:border-gray-800 relative group">
-                  <div className="absolute top-2 right-2 flex gap-2">
-                    <button onClick={() => setEditingAnime(anime)} className="p-1.5 bg-gray-100 dark:bg-gray-800 text-gray-600 rounded-md hover:text-purple-600"><Edit2 size={16} /></button>
-                    <button onClick={() => handleDelete(anime.id)} className="p-1.5 bg-gray-100 dark:bg-gray-800 text-gray-600 rounded-md hover:text-red-600"><Trash2 size={16} /></button>
-                  </div>
+              {displayedAnime.map((anime) => {
+                const currentEp = anime.currentEpisode || 0;
+                const totalEp = anime.totalProgress;
+                const progressPercent = totalEp ? Math.min((currentEp / totalEp) * 100, 100) : 0;
+                const isFinished = totalEp && currentEp >= totalEp;
 
-                  <div className="w-24 h-36 shrink-0 bg-gray-200 dark:bg-gray-800 rounded-lg overflow-hidden flex items-center justify-center">
-                    {anime.coverUrl ? (
-                      <img src={anime.coverUrl} alt={anime.title} className="w-full h-full object-cover" />
-                    ) : (
-                      <PlaySquare className="text-gray-400" size={32} />
-                    )}
-                  </div>
-                  
-                  <div className="flex flex-col flex-grow justify-between py-1 pr-14">
-                    <div>
-                      <h3 className="font-bold text-lg leading-tight mb-1 line-clamp-2">{anime.title}</h3>
-                      {anime.director && <p className="text-sm text-gray-600 dark:text-gray-400 line-clamp-1">{anime.director}</p>}
-                      
-                      <div className="flex items-center gap-2 mt-1">
-                        <p className="text-sm font-medium text-purple-600 dark:text-purple-400">
-                          {anime.currentSeason ? `T${anime.currentSeason} • ` : ''} 
-                          Episodio: {anime.currentEpisode || 0}
-                        </p>
-                        <button
-                          onClick={() => handleIncrementEpisode(anime.id, anime.currentEpisode)}
-                          className="flex items-center justify-center p-1 rounded-full text-purple-500 hover:bg-purple-100 dark:hover:bg-purple-900/50 transition-colors active:scale-90"
-                        >
-                          <PlusCircle size={18} />
-                        </button>
-                      </div>
+                return (
+                  <div key={anime.id} className="flex gap-4 p-3 bg-white dark:bg-gray-900 rounded-xl shadow-sm border border-gray-100 dark:border-gray-800 relative group">
+                    <div className="absolute top-2 right-2 flex gap-2">
+                      <button onClick={() => setEditingAnime(anime)} className="p-1.5 bg-gray-100 dark:bg-gray-800 text-gray-600 dark:text-gray-300 rounded-md hover:text-blue-600 transition-colors"><Edit2 size={16} /></button>
+                      <button onClick={() => handleDelete(anime.id)} className="p-1.5 bg-gray-100 dark:bg-gray-800 text-gray-600 dark:text-gray-300 rounded-md hover:text-red-600 transition-colors"><Trash2 size={16} /></button>
+                    </div>
+
+                    <div className="w-24 h-36 shrink-0 bg-gray-200 dark:bg-gray-800 rounded-lg overflow-hidden flex items-center justify-center relative">
+                      {anime.coverUrl ? <img src={anime.coverUrl} alt={anime.title} className="w-full h-full object-cover" /> : <PlaySquare className="text-gray-400" size={32} />}
+                      {anime.releaseStatus === 'emision' && (
+                        <div className="absolute bottom-0 left-0 right-0 bg-red-600/90 text-white text-[9px] font-bold text-center py-1 uppercase tracking-wider backdrop-blur-sm">En Emisión</div>
+                      )}
                     </div>
                     
-                    <div className="flex items-center justify-between mt-3">
-                      <span className={`text-[10px] uppercase font-bold px-2 py-1 rounded-full ${getStatusColor(anime.status)}`}>
-                        {anime.status.replace('-', ' ')}
-                      </span>
+                    <div className="flex flex-col flex-grow justify-between py-1 pr-14">
+                      <div>
+                        <h3 className="font-bold text-lg leading-tight mb-1 line-clamp-2">{anime.title}</h3>
+                        <div className="flex items-center gap-2 mt-1">
+                          <p className={`text-sm font-medium ${isFinished ? 'text-green-600 dark:text-green-400' : 'text-blue-600 dark:text-blue-400'}`}>
+                            {anime.currentSeason ? `T${anime.currentSeason} • ` : ''} 
+                            Ep. {currentEp} {totalEp ? `/ ${totalEp}` : ''}
+                          </p>
+                          <button onClick={() => handleIncrementEpisode(anime)} disabled={isFinished} className={`flex items-center justify-center p-1 rounded-full transition-colors active:scale-90 ${isFinished ? 'text-gray-300 dark:text-gray-600 cursor-not-allowed' : 'text-blue-500 hover:bg-blue-100 dark:hover:bg-blue-900/50'}`}>
+                            <PlusCircle size={18} />
+                          </button>
+                        </div>
+                        {totalEp > 0 && (
+                          <div className="w-full bg-gray-100 dark:bg-gray-800 rounded-full h-1.5 mt-2 overflow-hidden">
+                            <div className={`h-1.5 rounded-full transition-all duration-500 ease-out ${isFinished ? 'bg-green-500' : 'bg-blue-500'}`} style={{ width: `${progressPercent}%` }}></div>
+                          </div>
+                        )}
+                      </div>
+                      
+                      <div className="flex items-center justify-between mt-3">
+                        <span className={`text-[10px] uppercase font-bold px-2 py-1 rounded-full ${getStatusColor(anime.status)}`}>{anime.status.replace('-', ' ')}</span>
+                        {anime.score && <span className="text-sm font-bold bg-yellow-100 text-yellow-800 dark:bg-yellow-900 dark:text-yellow-200 px-2 py-1 rounded-md">★ {anime.score}</span>}
+                      </div>
                     </div>
                   </div>
-                </div>
-              ))}
-              {hasMore && <button onClick={handleLoadMore} className="w-full py-3 mt-4 text-sm bg-gray-100 rounded-xl">Cargar más</button>}
+                );
+              })}
             </>
           )}
         </div>

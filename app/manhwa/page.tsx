@@ -10,15 +10,16 @@ import { toast } from 'sonner';
 import { collection, query, where, orderBy, onSnapshot, doc, deleteDoc, updateDoc } from 'firebase/firestore';
 import { db } from '@/lib/firebase';
 import { useAuth } from '@/context/AuthContext';
-import { Reading, MediaStatus } from '@/types';
+import { MediaStatus } from '@/types';
 
 export default function ManhwaPage() {
   const { user } = useAuth();
   
-  const [manhwaList, setManhwaList] = useState<Reading[]>([]);
+  // Usamos any temporalmente para el array para no tener errores de TypeScript con las nuevas propiedades
+  const [manhwaList, setManhwaList] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [showForm, setShowForm] = useState(false);
-  const [editingManhwa, setEditingManhwa] = useState<Reading | null>(null);
+  const [editingManhwa, setEditingManhwa] = useState<any | null>(null);
 
   const [searchTerm, setSearchTerm] = useState('');
   const [statusFilter, setStatusFilter] = useState<MediaStatus | 'todos'>('todos');
@@ -37,9 +38,9 @@ export default function ManhwaPage() {
     );
 
     const unsubscribe = onSnapshot(q, (querySnapshot) => {
-      const data: Reading[] = [];
+      const data: any[] = [];
       querySnapshot.forEach((doc) => {
-        data.push({ id: doc.id, ...doc.data() } as Reading);
+        data.push({ id: doc.id, ...doc.data() });
       });
       setManhwaList(data);
       setLoading(false);
@@ -53,27 +54,48 @@ export default function ManhwaPage() {
 
   const handleDelete = async (id: string | undefined) => {
     if (!id) return;
-    if (window.confirm('¿Estás seguro de que deseas eliminar este anime de tu bitácora?')) {
+    if (window.confirm('¿Estás seguro de que deseas eliminar este manhwa de tu bitácora?')) {
       try {
         await deleteDoc(doc(db, 'entries', id));
-        toast.success('Eliminado correctamente'); // <-- Notificación
+        toast.success('Eliminado correctamente'); 
       } catch (error) {
         console.error("Error al eliminar:", error);
-        toast.error('Hubo un error al eliminar. Inténtalo de nuevo.'); // <-- Notificación
+        toast.error('Hubo un error al eliminar. Inténtalo de nuevo.'); 
       }
     }
   };
 
-  const handleIncrementChapter = async (id: string | undefined, currentCh: number = 0) => {
-    if (!id) return;
+  // --- LÓGICA DE INCREMENTO INTELIGENTE (CAPÍTULOS) ---
+  const handleIncrementChapter = async (manhwa: any) => {
+    if (!manhwa.id) return;
+    
+    const currentChap = manhwa.currentChapter || 0;
+    const totalChap = manhwa.totalProgress;
+
+    // Verificamos el límite
+    if (totalChap && currentChap >= totalChap) {
+      toast.info('¡Ya llegaste al capítulo final!');
+      return;
+    }
+
     try {
-      const docRef = doc(db, 'entries', id);
-      await updateDoc(docRef, {
-        currentChapter: currentCh + 1,
+      const docRef = doc(db, 'entries', manhwa.id);
+      
+      const newData: any = {
+        currentChapter: currentChap + 1,
         updatedAt: Date.now()
-      });
+      };
+
+      // Si con este clic llegó al final, la marcamos como completada automáticamente
+      if (totalChap && currentChap + 1 === totalChap) {
+        newData.status = 'completado';
+        toast.success('¡Felicidades, terminaste este manhwa!', { duration: 4000 });
+      }
+
+      await updateDoc(docRef, newData);
     } catch (error) {
       console.error("Error al incrementar capítulo:", error);
+      toast.error('Error al actualizar el capítulo');
     }
   };
 
@@ -204,7 +226,7 @@ export default function ManhwaPage() {
           />
         </div>
       ) : (
-        <div className="space-y-4">
+        <div className="space-y-4 pb-10">
           {loading ? (
             <>
               <SkeletonCard />
@@ -224,52 +246,81 @@ export default function ManhwaPage() {
             </div>
           ) : (
             <>
-              {displayedManhwa.map((manhwa) => (
-                <div key={manhwa.id} className="flex gap-4 p-3 bg-white dark:bg-gray-900 rounded-xl shadow-sm border border-gray-100 dark:border-gray-800 relative group">
-                  <div className="absolute top-2 right-2 flex gap-2">
-                    <button onClick={() => setEditingManhwa(manhwa)} className="p-1.5 bg-gray-100 dark:bg-gray-800 text-gray-600 rounded-md hover:text-orange-600"><Edit2 size={16} /></button>
-                    <button onClick={() => handleDelete(manhwa.id)} className="p-1.5 bg-gray-100 dark:bg-gray-800 text-gray-600 rounded-md hover:text-red-600"><Trash2 size={16} /></button>
-                  </div>
+              {displayedManhwa.map((manhwa) => {
+                // Calcular progreso para la barra
+                const currentChap = manhwa.currentChapter || 0;
+                const totalChap = manhwa.totalProgress;
+                const progressPercent = totalChap ? Math.min((currentChap / totalChap) * 100, 100) : 0;
+                const isFinished = totalChap && currentChap >= totalChap;
 
-                  <div className="w-24 h-36 shrink-0 bg-gray-200 dark:bg-gray-800 rounded-lg overflow-hidden flex items-center justify-center">
-                    {manhwa.coverUrl ? (
-                      <img src={manhwa.coverUrl} alt={manhwa.title} className="w-full h-full object-cover" />
-                    ) : (
-                      <ScrollText className="text-gray-400" size={32} />
-                    )}
-                  </div>
-                  
-                  <div className="flex flex-col flex-grow justify-between py-1 pr-14">
-                    <div>
-                      <h3 className="font-bold text-lg leading-tight mb-1 line-clamp-3">{manhwa.title}</h3>
-                      
-                      <div className="flex items-center gap-2 mt-2">
-                        <p className="text-sm font-medium text-orange-600 dark:text-orange-500">
-                          Capítulo actual: {manhwa.currentChapter || 0}
-                        </p>
-                        <button
-                          onClick={() => handleIncrementChapter(manhwa.id, manhwa.currentChapter)}
-                          className="flex items-center justify-center p-1 rounded-full text-orange-500 hover:bg-orange-100 dark:hover:bg-orange-900/50 transition-colors active:scale-90"
-                        >
-                          <PlusCircle size={18} />
-                        </button>
-                      </div>
+                return (
+                  <div key={manhwa.id} className="flex gap-4 p-3 bg-white dark:bg-gray-900 rounded-xl shadow-sm border border-gray-100 dark:border-gray-800 relative group">
+                    <div className="absolute top-2 right-2 flex gap-2">
+                      <button onClick={() => setEditingManhwa(manhwa)} className="p-1.5 bg-gray-100 dark:bg-gray-800 text-gray-600 rounded-md hover:text-orange-600 transition-colors"><Edit2 size={16} /></button>
+                      <button onClick={() => handleDelete(manhwa.id)} className="p-1.5 bg-gray-100 dark:bg-gray-800 text-gray-600 rounded-md hover:text-red-600 transition-colors"><Trash2 size={16} /></button>
                     </div>
-                    
-                    <div className="flex items-center justify-between mt-3">
-                      <span className={`text-[10px] uppercase font-bold px-2 py-1 rounded-full ${getStatusColor(manhwa.status)}`}>
-                        {manhwa.status.replace('-', ' ')}
-                      </span>
-                      {manhwa.score && (
-                        <span className="text-sm font-bold bg-yellow-100 text-yellow-800 dark:bg-yellow-900 dark:text-yellow-200 px-2 py-1 rounded-md">
-                          ★ {manhwa.score}/10
-                        </span>
+
+                    <div className="w-24 h-36 shrink-0 bg-gray-200 dark:bg-gray-800 rounded-lg overflow-hidden flex items-center justify-center relative">
+                      {manhwa.coverUrl ? (
+                        <img src={manhwa.coverUrl} alt={manhwa.title} className="w-full h-full object-cover" />
+                      ) : (
+                        <ScrollText className="text-gray-400" size={32} />
+                      )}
+                      
+                      {/* Etiqueta de "En Emisión" superpuesta en la imagen */}
+                      {manhwa.releaseStatus === 'emision' && (
+                        <div className="absolute bottom-0 left-0 right-0 bg-red-600/90 text-white text-[9px] font-bold text-center py-1 uppercase tracking-wider backdrop-blur-sm">
+                          En Emisión
+                        </div>
                       )}
                     </div>
+                    
+                    <div className="flex flex-col flex-grow justify-between py-1 pr-14">
+                      <div>
+                        <h3 className="font-bold text-lg leading-tight mb-1 line-clamp-2">{manhwa.title}</h3>
+                        
+                        <div className="flex items-center gap-2 mt-2">
+                          <p className={`text-sm font-medium ${isFinished ? 'text-green-600 dark:text-green-400' : 'text-orange-600 dark:text-orange-500'}`}>
+                            Cap. {currentChap} {totalChap ? `/ ${totalChap}` : ''}
+                          </p>
+                          
+                          <button
+                            onClick={() => handleIncrementChapter(manhwa)}
+                            disabled={isFinished}
+                            className={`flex items-center justify-center p-1 rounded-full transition-colors active:scale-90 ${
+                              isFinished ? 'text-gray-300 dark:text-gray-600 cursor-not-allowed' : 'text-orange-500 hover:bg-orange-100 dark:hover:bg-orange-900/50'
+                            }`}
+                          >
+                            <PlusCircle size={18} />
+                          </button>
+                        </div>
+
+                        {/* BARRA DE PROGRESO VISUAL */}
+                        {totalChap > 0 && (
+                          <div className="w-full bg-gray-100 dark:bg-gray-800 rounded-full h-1.5 mt-2 overflow-hidden">
+                            <div 
+                              className={`h-1.5 rounded-full transition-all duration-500 ease-out ${isFinished ? 'bg-green-500' : 'bg-orange-500'}`} 
+                              style={{ width: `${progressPercent}%` }}
+                            ></div>
+                          </div>
+                        )}
+                      </div>
+                      
+                      <div className="flex items-center justify-between mt-3">
+                        <span className={`text-[10px] uppercase font-bold px-2 py-1 rounded-full ${getStatusColor(manhwa.status)}`}>
+                          {manhwa.status.replace('-', ' ')}
+                        </span>
+                        {manhwa.score && (
+                          <span className="text-sm font-bold bg-yellow-100 text-yellow-800 dark:bg-yellow-900 dark:text-yellow-200 px-2 py-1 rounded-md">
+                            ★ {manhwa.score}/10
+                          </span>
+                        )}
+                      </div>
+                    </div>
                   </div>
-                </div>
-              ))}
-              {hasMore && <button onClick={handleLoadMore} className="w-full py-3 mt-4 text-sm bg-gray-100 rounded-xl">Cargar más</button>}
+                );
+              })}
+              {hasMore && <button onClick={handleLoadMore} className="w-full py-3 mt-4 text-sm font-medium text-gray-600 bg-gray-100 hover:bg-gray-200 dark:bg-gray-800 dark:hover:bg-gray-700 dark:text-gray-300 rounded-xl transition-colors">Cargar más</button>}
             </>
           )}
         </div>
