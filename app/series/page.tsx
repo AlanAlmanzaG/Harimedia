@@ -5,6 +5,8 @@ import { useState, useEffect, useMemo } from 'react';
 import { Plus, ArrowLeft, Tv, Edit2, Trash2, Search, SlidersHorizontal, PlusCircle } from 'lucide-react';
 import Link from 'next/link';
 import MediaForm from '@/components/MediaForm';
+import SkeletonCard from '@/components/SkeletonCard'; // <-- Importamos el Esqueleto
+import { toast } from 'sonner'; // <-- Importamos Sonner
 import { collection, query, where, orderBy, onSnapshot, doc, deleteDoc, updateDoc } from 'firebase/firestore';
 import { db } from '@/lib/firebase';
 import { useAuth } from '@/context/AuthContext';
@@ -27,7 +29,6 @@ export default function SeriesPage() {
   useEffect(() => {
     if (!user) return;
 
-    // Buscamos específicamente el tipo 'serie'
     const q = query(
       collection(db, 'entries'),
       where('userId', '==', user.uid),
@@ -50,29 +51,29 @@ export default function SeriesPage() {
     return () => unsubscribe();
   }, [user]);
 
+  // Función handleDelete con Notificaciones
   const handleDelete = async (id: string | undefined) => {
     if (!id) return;
     if (window.confirm('¿Estás seguro de que deseas eliminar esta serie de tu bitácora?')) {
       try {
         await deleteDoc(doc(db, 'entries', id));
+        toast.success('Serie eliminada correctamente');
       } catch (error) {
         console.error("Error al eliminar:", error);
-        alert('Hubo un error al eliminar. Inténtalo de nuevo.');
+        toast.error('Hubo un error al eliminar. Inténtalo de nuevo.');
       }
     }
   };
 
-  // Función para incrementar el episodio rápidamente
   const handleIncrementEpisode = async (id: string | undefined, currentEp: number = 0) => {
     if (!id) return;
     try {
       const docRef = doc(db, 'entries', id);
-      // Actualizamos el episodio sumándole 1, y también la fecha de actualización
-      // para que suba al principio de "Mi Lista"
       await updateDoc(docRef, {
         currentEpisode: currentEp + 1,
         updatedAt: Date.now()
       });
+      // Opcional: toast.success('+1 Episodio'); 
     } catch (error) {
       console.error("Error al incrementar episodio:", error);
     }
@@ -135,6 +136,7 @@ export default function SeriesPage() {
         )}
       </header>
 
+      {/* Buscador y filtros... */}
       {!(showForm || editingSerie) && seriesList.length > 0 && (
         <div className="mb-6 space-y-3">
           <div className="flex gap-2">
@@ -210,8 +212,14 @@ export default function SeriesPage() {
         </div>
       ) : (
         <div className="space-y-4">
+          {/* AQUÍ ESTÁN LOS SKELETON LOADERS */}
           {loading ? (
-            <div className="text-center py-10 text-gray-500">Cargando tu colección...</div>
+            <>
+              <SkeletonCard />
+              <SkeletonCard />
+              <SkeletonCard />
+              <SkeletonCard />
+            </>
           ) : seriesList.length === 0 ? (
             <div className="mt-10 text-center">
               <div className="inline-flex items-center justify-center w-16 h-16 rounded-full bg-gray-100 dark:bg-gray-800 mb-4">
@@ -234,14 +242,12 @@ export default function SeriesPage() {
                     <button 
                       onClick={() => setEditingSerie(serie)}
                       className="p-1.5 bg-gray-100 dark:bg-gray-800 text-gray-600 dark:text-gray-300 rounded-md hover:bg-blue-100 hover:text-blue-600 transition-colors"
-                      title="Editar"
                     >
                       <Edit2 size={16} />
                     </button>
                     <button 
                       onClick={() => handleDelete(serie.id)}
                       className="p-1.5 bg-gray-100 dark:bg-gray-800 text-gray-600 dark:text-gray-300 rounded-md hover:bg-red-100 hover:text-red-600 transition-colors"
-                      title="Eliminar"
                     >
                       <Trash2 size={16} />
                     </button>
@@ -260,34 +266,22 @@ export default function SeriesPage() {
                       <h3 className="font-bold text-lg leading-tight mb-1 line-clamp-2">{serie.title}</h3>
                       {serie.director && <p className="text-sm text-gray-600 dark:text-gray-400 line-clamp-1">{serie.director}</p>}
                       
-                      {/* Información de Temporada y Episodio con botón +1 */}
                       <div className="flex items-center gap-2 mt-1">
                         <p className="text-sm font-medium text-blue-600 dark:text-blue-400">
                           {serie.currentSeason ? `T${serie.currentSeason} • ` : ''} 
                           Episodio: {serie.currentEpisode || 0}
                         </p>
-                        
-                        {/* Botón rápido de +1 */}
                         <button
                           onClick={() => handleIncrementEpisode(serie.id, serie.currentEpisode)}
                           className="flex items-center justify-center p-1 rounded-full text-blue-500 hover:bg-blue-100 dark:hover:bg-blue-900/50 transition-colors active:scale-90"
-                          title="Sumar 1 episodio"
                         >
                           <PlusCircle size={18} />
                         </button>
                       </div>
 
                       <div className="flex flex-wrap gap-2 mt-2 text-xs font-medium">
-                        {serie.year && (
-                          <span className="bg-gray-100 dark:bg-gray-800 px-2 py-1 rounded-md">
-                            {serie.year}
-                          </span>
-                        )}
-                        {serie.genre && (
-                          <span className="bg-gray-100 dark:bg-gray-800 px-2 py-1 rounded-md">
-                            {serie.genre}
-                          </span>
-                        )}
+                        {serie.year && <span className="bg-gray-100 dark:bg-gray-800 px-2 py-1 rounded-md">{serie.year}</span>}
+                        {serie.genre && <span className="bg-gray-100 dark:bg-gray-800 px-2 py-1 rounded-md">{serie.genre}</span>}
                       </div>
                     </div>
                     
@@ -306,10 +300,7 @@ export default function SeriesPage() {
               ))}
               
               {hasMore && (
-                <button
-                  onClick={handleLoadMore}
-                  className="w-full py-3 mt-4 text-sm font-medium text-gray-600 bg-gray-100 rounded-xl hover:bg-gray-200 dark:bg-gray-800 dark:text-gray-300 dark:hover:bg-gray-700 transition-colors"
-                >
+                <button onClick={handleLoadMore} className="w-full py-3 mt-4 text-sm font-medium text-gray-600 bg-gray-100 rounded-xl hover:bg-gray-200 transition-colors">
                   Cargar más series
                 </button>
               )}

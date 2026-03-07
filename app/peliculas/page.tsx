@@ -9,6 +9,8 @@ import { collection, query, where, orderBy, onSnapshot, doc, deleteDoc } from 'f
 import { db } from '@/lib/firebase';
 import { useAuth } from '@/context/AuthContext';
 import { Movie, MediaStatus } from '@/types';
+import SkeletonCard from '@/components/SkeletonCard'; // Importamos el esqueleto
+import { toast } from 'sonner'; // Importamos el toast
 
 export default function PeliculasPage() {
   const { user } = useAuth();
@@ -53,12 +55,16 @@ export default function PeliculasPage() {
 
   const handleDelete = async (id: string | undefined) => {
     if (!id) return;
+    
+    // Usamos el toast nativo del navegador por ahora para la confirmación rápida,
+    // pero el resultado lo mostramos con Sonner.
     if (window.confirm('¿Estás seguro de que deseas eliminar esta película de tu bitácora?')) {
       try {
         await deleteDoc(doc(db, 'entries', id));
+        toast.success('Película eliminada correctamente'); // <-- Notificación elegante
       } catch (error) {
         console.error("Error al eliminar:", error);
-        alert('Hubo un error al eliminar. Inténtalo de nuevo.');
+        toast.error('Hubo un error al eliminar. Inténtalo de nuevo.'); // <-- Notificación elegante
       }
     }
   };
@@ -202,7 +208,13 @@ export default function PeliculasPage() {
       ) : (
         <div className="space-y-4">
           {loading ? (
-            <div className="text-center py-10 text-gray-500">Cargando tu colección...</div>
+            // Mostramos 4 esqueletos mientras carga
+            <>
+              <SkeletonCard />
+              <SkeletonCard />
+              <SkeletonCard />
+              <SkeletonCard />
+            </>
           ) : movies.length === 0 ? (
             <div className="mt-10 text-center">
               <div className="inline-flex items-center justify-center w-16 h-16 rounded-full bg-gray-100 dark:bg-gray-800 mb-4">

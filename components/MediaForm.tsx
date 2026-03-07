@@ -6,6 +6,7 @@ import { collection, addDoc, doc, updateDoc } from 'firebase/firestore';
 import { db } from '@/lib/firebase';
 import { useAuth } from '@/context/AuthContext';
 import { MediaType, MediaStatus } from '@/types';
+import { toast } from 'sonner'; // <-- Importamos Sonner aquí
 
 interface MediaFormProps {
   type: MediaType;
@@ -83,9 +84,11 @@ export default function MediaForm({ type, onSuccess, onCancel, initialData }: Me
         // Modo Edición: Actualizamos el documento específico usando doc() y updateDoc()
         const docRef = doc(db, 'entries', initialData.id);
         await updateDoc(docRef, mediaData);
+        toast.success(`${type} actualizada correctamente`); // <-- AVISO DE EDICIÓN EXITOSA
       } else {
         // Modo Creación: Añadimos un documento nuevo a la colección
         await addDoc(collection(db, 'entries'), mediaData);
+        toast.success(`${type} agregada a tu bitácora`); // <-- AVISO DE CREACIÓN EXITOSA
       }
       
       onSuccess();

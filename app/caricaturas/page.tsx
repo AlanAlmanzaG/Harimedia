@@ -5,6 +5,8 @@ import { useState, useEffect, useMemo } from 'react';
 import { Plus, ArrowLeft, MonitorPlay, Edit2, Trash2, Search, SlidersHorizontal, PlusCircle } from 'lucide-react';
 import Link from 'next/link';
 import MediaForm from '@/components/MediaForm';
+import SkeletonCard from '@/components/SkeletonCard';
+import { toast } from 'sonner';
 import { collection, query, where, orderBy, onSnapshot, doc, deleteDoc, updateDoc } from 'firebase/firestore';
 import { db } from '@/lib/firebase';
 import { useAuth } from '@/context/AuthContext';
@@ -51,11 +53,13 @@ export default function CaricaturasPage() {
 
   const handleDelete = async (id: string | undefined) => {
     if (!id) return;
-    if (window.confirm('¿Estás seguro de que deseas eliminar esta caricatura de tu bitácora?')) {
+    if (window.confirm('¿Estás seguro de que deseas eliminar este anime de tu bitácora?')) {
       try {
         await deleteDoc(doc(db, 'entries', id));
+        toast.success('Eliminado correctamente'); // <-- Notificación
       } catch (error) {
         console.error("Error al eliminar:", error);
+        toast.error('Hubo un error al eliminar. Inténtalo de nuevo.'); // <-- Notificación
       }
     }
   };
@@ -203,7 +207,12 @@ export default function CaricaturasPage() {
       ) : (
         <div className="space-y-4">
           {loading ? (
-            <div className="text-center py-10 text-gray-500">Cargando tu colección...</div>
+            <>
+              <SkeletonCard />
+              <SkeletonCard />
+              <SkeletonCard />
+              <SkeletonCard />
+            </>
           ) : caricaturasList.length === 0 ? (
             <div className="mt-10 text-center">
               <div className="inline-flex items-center justify-center w-16 h-16 rounded-full bg-gray-100 dark:bg-gray-800 mb-4">

@@ -7,6 +7,7 @@ import { collection, query, where, orderBy, onSnapshot } from 'firebase/firestor
 import { db } from '@/lib/firebase';
 import { useAuth } from '@/context/AuthContext';
 import { MediaEntry, MediaStatus, MediaType } from '@/types';
+import SkeletonCard from '@/components/SkeletonCard'; // <-- Agregamos la importación del Esqueleto
 
 export default function MiListaPage() {
   const { user } = useAuth();
@@ -181,7 +182,14 @@ export default function MiListaPage() {
 
       <div className="space-y-4">
         {loading ? (
-          <div className="text-center py-10 text-gray-500">Cargando tu colección global...</div>
+          // ¡Aquí están los Skeletons!
+          <>
+            <SkeletonCard />
+            <SkeletonCard />
+            <SkeletonCard />
+            <SkeletonCard />
+            <SkeletonCard />
+          </>
         ) : entries.length === 0 ? (
           <div className="text-center py-10">
             <h3 className="text-lg font-medium text-gray-900 dark:text-gray-100">Tu lista está vacía</h3>

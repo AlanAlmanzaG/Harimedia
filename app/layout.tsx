@@ -4,10 +4,10 @@ import { Inter } from 'next/font/google';
 import './globals.css';
 import { AuthProvider } from '@/context/AuthContext';
 import LayoutWrapper from '@/components/LayoutWrapper';
+import { Toaster } from 'sonner'; // <-- 1. Importamos Sonner
 
 const inter = Inter({ subsets: ['latin'] });
 
-// Configuramos la metadata general y para dispositivos Apple
 export const metadata: Metadata = {
   title: 'Harimedia',
   description: 'Tu bitácora personal de entretenimiento',
@@ -19,8 +19,6 @@ export const metadata: Metadata = {
   },
 };
 
-// Configuramos el viewport para evitar zoom accidental en celulares
-// y definimos el color de la barra superior
 export const viewport: Viewport = {
   themeColor: '#ffffff',
   width: 'device-width',
@@ -43,6 +41,8 @@ export default function RootLayout({
               {children}
             </LayoutWrapper>
           </div>
+          {/* 2. Agregamos el Toaster aquí. richColors le da colores vivos (rojo error, verde éxito) */}
+          <Toaster position="top-center" richColors /> 
         </AuthProvider>
       </body>
     </html>
