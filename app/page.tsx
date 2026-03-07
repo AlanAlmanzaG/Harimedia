@@ -3,7 +3,7 @@
 
 import { useState, useEffect, useMemo } from 'react';
 import Link from 'next/link';
-import { Film, Tv, PlaySquare, BookOpen, MonitorPlay, ScrollText, Flame, PlusCircle, Image as ImageIcon } from 'lucide-react';
+import { Film, Tv, PlaySquare, BookOpen, MonitorPlay, ScrollText, PlusCircle, Image as ImageIcon, User } from 'lucide-react';
 import { useAuth } from '@/context/AuthContext';
 import { collection, query, where, onSnapshot, doc, updateDoc } from 'firebase/firestore';
 import { db } from '@/lib/firebase';
@@ -12,13 +12,12 @@ import { toast } from 'sonner';
 export default function HomePage() {
   const { user } = useAuth();
   
-  // Estados para cargar los datos y mostrar estadísticas/actividad reciente
+  // Estados para cargar los datos
   const [entries, setEntries] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
     if (!user) return;
-    // Traemos todo para calcular estadísticas y actividad
     const q = query(collection(db, 'entries'), where('userId', '==', user.uid));
     const unsubscribe = onSnapshot(q, (querySnapshot) => {
       const data: any[] = [];
@@ -34,10 +33,8 @@ export default function HomePage() {
     return entries
       .filter(e => e.status === 'viendo' && e.type !== 'pelicula')
       .sort((a, b) => (b.updatedAt || 0) - (a.updatedAt || 0))
-      .slice(0, 5); // Mostramos solo los últimos 5
+      .slice(0, 5);
   }, [entries]);
-
-  const totalEntries = entries.length;
 
   // Lógica para aumentar episodio directo desde la pantalla de inicio
   const handleIncrement = async (entry: any) => {
@@ -74,7 +71,6 @@ export default function HomePage() {
     }
   };
 
-  // Definición de las categorías con sus nuevos gradientes y sombras
   const categories = [
     { href: '/peliculas', name: 'Películas', icon: Film, bg: 'bg-gradient-to-br from-red-500 to-red-700', shadow: 'shadow-red-500/40' },
     { href: '/series', name: 'Series', icon: Tv, bg: 'bg-gradient-to-br from-blue-500 to-blue-700', shadow: 'shadow-blue-500/40' },
@@ -84,36 +80,45 @@ export default function HomePage() {
     { href: '/manhwa', name: 'Manhwa', icon: ScrollText, bg: 'bg-gradient-to-br from-orange-400 to-orange-600', shadow: 'shadow-orange-500/40' },
   ];
 
+  // Obtenemos el primer nombre del usuario para saludarlo
+  const firstName = user?.displayName ? user.displayName.split(' ')[0] : 'Usuario';
+
   return (
-    <div className="pb-24 overflow-x-hidden">
+    <div className="pb-24 pt-20 overflow-x-hidden">
       
-      {/* 1. CABECERA Y PÍLDORA DE ESTADÍSTICAS */}
-      <div className="p-5">
-        <header className="mb-6 mt-4">
-          <h1 className="text-4xl font-black tracking-tight text-gray-900 dark:text-white">
-            Harimedia
-          </h1>
-          <p className="text-gray-500 dark:text-gray-400 mt-1 text-lg">¿Qué vamos a registrar hoy?</p>
-          
-          {/* Píldora que se muestra solo cuando ya cargaron los datos */}
-          {!loading && (
-            <div className="inline-flex items-center gap-1.5 bg-gradient-to-r from-blue-100 to-indigo-100 dark:from-blue-900/40 dark:to-indigo-900/40 text-blue-700 dark:text-blue-300 px-4 py-1.5 rounded-full text-sm font-bold mt-4 shadow-sm border border-blue-200 dark:border-blue-800/50 animate-in fade-in slide-in-from-left-4">
-              <Flame size={16} className="text-orange-500" fill="currentColor" />
-              <span>{totalEntries} obras en tu bitácora</span>
+      {/* 1. HEADER FIJO PROFESIONAL */}
+      <header className="fixed top-0 left-0 right-0 z-50 bg-white/80 dark:bg-gray-950/80 backdrop-blur-xl border-b border-gray-200 dark:border-gray-800 px-5 py-3 flex items-center justify-between">
+        <h1 className="text-2xl font-black tracking-tighter bg-gradient-to-r from-blue-600 to-purple-600 dark:from-blue-400 dark:to-purple-400 bg-clip-text text-transparent">
+          Harimedia
+        </h1>
+        
+        {/* Avatar del usuario (te lleva al perfil o solo es decorativo) */}
+        <Link href="/perfil" className="shrink-0 transition-transform active:scale-95">
+          {user?.photoURL ? (
+            <img src={user.photoURL} alt="Perfil" className="w-9 h-9 rounded-full object-cover border-2 border-gray-100 dark:border-gray-800 shadow-sm" referrerPolicy="no-referrer" />
+          ) : (
+            <div className="w-9 h-9 bg-blue-100 dark:bg-blue-900/40 text-blue-600 dark:text-blue-400 rounded-full flex items-center justify-center border-2 border-transparent">
+              <User size={18} />
             </div>
           )}
-        </header>
+        </Link>
+      </header>
+
+      {/* SALUDO */}
+      <div className="px-5 mb-6">
+        <h2 className="text-2xl font-bold text-gray-900 dark:text-white">Hola, {firstName} 👋</h2>
+        <p className="text-gray-500 dark:text-gray-400 text-sm mt-0.5">¿Qué vamos a registrar hoy?</p>
       </div>
 
-      {/* 2. SECCIÓN: CONTINUAR VIENDO (Solo aparece si hay algo en proceso) */}
+      {/* 2. SECCIÓN: CONTINUAR VIENDO (Tarjetas más grandes) */}
       {!loading && recentActivity.length > 0 && (
         <div className="mb-8">
-          <div className="px-5 mb-4">
-            <h2 className="text-xl font-bold text-gray-900 dark:text-white">Continuar viendo...</h2>
+          <div className="px-5 mb-3">
+            <h2 className="text-lg font-bold text-gray-900 dark:text-white">Continuar viendo...</h2>
           </div>
           
           {/* Carrusel de Actividad Reciente fluido de lado a lado */}
-          <div className="flex overflow-x-auto gap-4 pb-4 px-5 snap-x hide-scrollbar">
+          <div className="flex overflow-x-auto gap-4 pb-4 px-5 -mx-5 snap-x hide-scrollbar">
             {recentActivity.map((entry, index) => {
               const isEpisodic = ['serie', 'anime', 'caricatura'].includes(entry.type);
               const current = isEpisodic ? (entry.currentEpisode || 0) : (entry.currentChapter || 0);
@@ -122,25 +127,25 @@ export default function HomePage() {
               const isFinished = total && current >= total;
 
               return (
-                <div key={entry.id} className={`snap-start shrink-0 w-64 bg-white dark:bg-gray-900 border border-gray-100 dark:border-gray-800 rounded-3xl shadow-sm overflow-hidden flex flex-col relative group ${index === recentActivity.length - 1 ? 'pr-5' : ''}`}>
+                <div key={entry.id} className={`snap-start shrink-0 w-72 bg-white dark:bg-gray-900 border border-gray-100 dark:border-gray-800 rounded-3xl shadow-sm overflow-hidden flex flex-col relative group ${index === recentActivity.length - 1 ? 'mr-5' : ''}`}>
                   
-                  {/* Imagen (Banner) */}
-                  <div className="h-32 bg-gray-200 dark:bg-gray-800 relative">
+                  {/* Imagen más grande (h-40 en lugar de h-32) */}
+                  <div className="h-40 bg-gray-200 dark:bg-gray-800 relative">
                     {entry.coverUrl ? (
                       <img src={entry.coverUrl} className="w-full h-full object-cover" alt={entry.title} />
                     ) : (
-                      <ImageIcon className="m-auto h-full text-gray-400 opacity-50" size={40} />
+                      <ImageIcon className="m-auto h-full text-gray-400 opacity-50" size={48} />
                     )}
                     <div className="absolute inset-0 bg-gradient-to-t from-black/90 via-black/20 to-transparent"></div>
-                    <div className="absolute bottom-2 left-3 right-3 text-white">
-                      <h3 className="font-bold text-sm line-clamp-1">{entry.title}</h3>
-                      <p className="text-[9px] font-bold text-gray-300 uppercase tracking-widest mt-0.5">{entry.type}</p>
+                    <div className="absolute bottom-3 left-4 right-4 text-white">
+                      <h3 className="font-bold text-base line-clamp-1">{entry.title}</h3>
+                      <p className="text-[10px] font-bold text-gray-300 uppercase tracking-widest mt-0.5">{entry.type}</p>
                     </div>
                   </div>
                   
-                  {/* Controles de progreso rápidos */}
-                  <div className="p-3">
-                    <div className="flex items-center justify-between mb-2">
+                  {/* Controles de progreso */}
+                  <div className="p-3.5">
+                    <div className="flex items-center justify-between mb-2.5">
                       <span className="text-xs font-bold text-gray-600 dark:text-gray-300 bg-gray-100 dark:bg-gray-800 px-2 py-1 rounded-md">
                         {isEpisodic ? 'Ep' : 'Cap'}. {current} {total ? `/ ${total}` : ''}
                       </span>
@@ -153,7 +158,7 @@ export default function HomePage() {
                             : 'bg-blue-100 hover:bg-blue-200 text-blue-600 dark:bg-blue-900/40 dark:hover:bg-blue-900/60 dark:text-blue-400'
                         }`}
                       >
-                        <PlusCircle size={20} strokeWidth={2.5} />
+                        <PlusCircle size={22} strokeWidth={2.5} />
                       </button>
                     </div>
                     {total > 0 && (
@@ -169,9 +174,9 @@ export default function HomePage() {
         </div>
       )}
 
-      {/* 3. TUS CATEGORÍAS (Menú Principal con Rediseño) */}
+      {/* 3. TUS CATEGORÍAS */}
       <div className="px-5">
-        <h2 className="text-xl font-bold mb-4 text-gray-900 dark:text-white">Tus Categorías</h2>
+        <h2 className="text-lg font-bold mb-3 text-gray-900 dark:text-white">Tus Categorías</h2>
 
         <div className="grid grid-cols-2 gap-4">
           {categories.map((cat) => (
@@ -184,14 +189,14 @@ export default function HomePage() {
                 min-h-[130px] transition-all duration-300 transform hover:-translate-y-1 hover:brightness-110 active:scale-95 group
               `}
             >
-              {/* Icono de fondo gigante y sutil (Decorativo) */}
+              {/* Icono de fondo gigante */}
               <cat.icon 
                 size={110} 
                 className="absolute -right-6 -bottom-6 opacity-20 transform group-hover:scale-110 group-hover:-rotate-6 transition-all duration-500" 
                 strokeWidth={1.5} 
               />
               
-              {/* Icono pequeño principal dentro de un círculo con efecto "glass" */}
+              {/* Icono pequeño */}
               <div className="bg-white/25 backdrop-blur-md p-2.5 rounded-2xl mb-auto shadow-sm">
                 <cat.icon size={26} strokeWidth={2.5} className="text-white drop-shadow-sm" />
               </div>
