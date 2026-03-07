@@ -106,7 +106,7 @@ export default function HomePage() {
 
       {/* SALUDO */}
       <div className="px-5 mb-6">
-        <h2 className="text-2xl font-bold text-gray-900 dark:text-white">Hola, {firstName} 👋</h2>
+        <h2 className="text-2xl font-bold text-gray-900 dark:text-white">Hola, {firstName}</h2>
         <p className="text-gray-500 dark:text-gray-400 text-sm mt-0.5">¿Qué vamos a registrar hoy?</p>
       </div>
 
