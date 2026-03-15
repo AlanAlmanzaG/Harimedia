@@ -17,6 +17,7 @@ import {
   Loader2,
   AlertTriangle,
   ExternalLink,
+  Download,
 } from "lucide-react";
 import {
   updateProfile,
@@ -28,7 +29,9 @@ import { auth } from "@/lib/firebase/config";
 import { logout } from "@/lib/firebase/auth";
 import { useAuth } from "@/hooks/useAuth";
 import { useAuthStore } from "@/store/authStore";
+import { ExportModal } from "@/components/profile/ExportModal";
 import { cn } from "@/lib/utils";
+import { ThemeToggleRow } from "@/components/profile/ThemeToggleRow";
 
 export default function ProfilePage() {
   const router = useRouter();
@@ -38,6 +41,7 @@ export default function ProfilePage() {
   const [section, setSection] = useState<
     "main" | "edit-name" | "change-password"
   >("main");
+  const [showExport, setShowExport] = useState(false);
 
   async function handleLogout() {
     await logout();
@@ -48,25 +52,29 @@ export default function ProfilePage() {
   if (!user) return null;
 
   return (
-    <div className="flex flex-col gap-6 px-4 pt-5 pb-8">
-      {section === "main" && (
-        <MainProfile
-          user={user}
-          onEditName={() => setSection("edit-name")}
-          onChangePassword={() => setSection("change-password")}
-          onLogout={handleLogout}
-        />
-      )}
-      {section === "edit-name" && (
-        <EditNameSection
-          currentName={user.displayName ?? ""}
-          onBack={() => setSection("main")}
-        />
-      )}
-      {section === "change-password" && (
-        <ChangePasswordSection onBack={() => setSection("main")} />
-      )}
-    </div>
+    <>
+      <div className="flex flex-col gap-6 px-4 pt-5 pb-8">
+        {section === "main" && (
+          <MainProfile
+            user={user}
+            onEditName={() => setSection("edit-name")}
+            onChangePassword={() => setSection("change-password")}
+            onExport={() => setShowExport(true)}
+            onLogout={handleLogout}
+          />
+        )}
+        {section === "edit-name" && (
+          <EditNameSection
+            currentName={user.displayName ?? ""}
+            onBack={() => setSection("main")}
+          />
+        )}
+        {section === "change-password" && (
+          <ChangePasswordSection onBack={() => setSection("main")} />
+        )}
+      </div>
+      {showExport && <ExportModal onClose={() => setShowExport(false)} />}
+    </>
   );
 }
 
@@ -76,11 +84,13 @@ function MainProfile({
   user,
   onEditName,
   onChangePassword,
+  onExport,
   onLogout,
 }: {
   user: NonNullable<ReturnType<typeof useAuth>["user"]>;
   onEditName: () => void;
   onChangePassword: () => void;
+  onExport: () => void;
   onLogout: () => void;
 }) {
   const [showLogoutConfirm, setShowLogoutConfirm] = useState(false);
@@ -157,16 +167,22 @@ function MainProfile({
 
       {/* ── Sección: Preferencias ───────────────────────────────── */}
       <SettingsSection title="Preferencias">
+  <ThemeToggleRow />   {/* ← reemplaza el SettingsRow de Tema */}
+  <SettingsRow
+    icon={Bell}
+    label="Notificaciones"
+    value="Próximamente"
+    disabled
+  />
+</SettingsSection>
+
+      {/* ── Sección: Datos ──────────────────────────────────────── */}
+      <SettingsSection title="Datos">
         <SettingsRow
-          icon={Moon}
-          label="Tema"
-          value="Oscuro"
-        />
-        <SettingsRow
-          icon={Bell}
-          label="Notificaciones"
-          value="Próximamente"
-          disabled
+          icon={Download}
+          label="Exportar biblioteca"
+          value="JSON / CSV"
+          onPress={onExport}
         />
       </SettingsSection>
 

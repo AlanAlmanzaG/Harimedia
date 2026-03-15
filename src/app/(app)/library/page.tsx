@@ -6,6 +6,8 @@ import Link from "next/link";
 import { Plus } from "lucide-react";
 import { useAuth } from "@/hooks/useAuth";
 import { useLibrary, type LibraryFilters } from "@/hooks/useLibrary";
+import { useLibrarySearch } from "@/hooks/useLibrarySearch";
+import { LibrarySearchBar } from "@/components/library/LibrarySearchBar";
 import { LibraryFiltersBar } from "@/components/library/LibraryFiltersBar";
 import { LibraryGrid } from "@/components/library/LibraryGrid";
 
@@ -19,12 +21,20 @@ const DEFAULT_FILTERS: LibraryFilters = {
 export default function LibraryPage() {
   const { user } = useAuth();
   const [filters, setFilters] = useState<LibraryFilters>(DEFAULT_FILTERS);
-  const { entries, loading, error, total } = useLibrary(user?.uid, filters);
+
+  // 1. Carga todas las entradas desde Firestore (con filtros de tipo/estado/orden)
+  const { entries, loading, error } = useLibrary(user?.uid, filters);
+
+  // 2. Filtra en cliente por texto de búsqueda
+  const { query, setQuery, results, isSearching } = useLibrarySearch(entries);
+
+  // Lo que se muestra en el grid: resultados de búsqueda o todas las entradas
+  const displayEntries = isSearching ? results : entries;
 
   return (
-    <div className="flex flex-col gap-4 px-4 pt-5 pb-4">
+    <div className="flex flex-col gap-3 px-4 pt-5 pb-4">
       {/* Encabezado */}
-      <div className="flex items-center justify-between">
+      <div className="flex items-center justify-between mb-1">
         <h1 className="text-xl font-semibold tracking-tight text-neutral-100">
           Mi biblioteca
         </h1>
@@ -37,12 +47,22 @@ export default function LibraryPage() {
         </Link>
       </div>
 
-      {/* Filtros */}
-      <LibraryFiltersBar
-        filters={filters}
-        onChange={setFilters}
-        total={total}
+      {/* Búsqueda interna */}
+      <LibrarySearchBar
+        value={query}
+        onChange={setQuery}
+        resultCount={results.length}
+        isSearching={isSearching}
       />
+
+      {/* Filtros — se ocultan durante búsqueda activa para no confundir */}
+      {!isSearching && (
+        <LibraryFiltersBar
+          filters={filters}
+          onChange={setFilters}
+          total={entries.length}
+        />
+      )}
 
       {/* Error */}
       {error && (
@@ -50,7 +70,7 @@ export default function LibraryPage() {
       )}
 
       {/* Grid */}
-      <LibraryGrid entries={entries} loading={loading} />
+      <LibraryGrid entries={displayEntries} loading={loading} />
     </div>
   );
 }

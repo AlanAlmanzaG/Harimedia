@@ -21,6 +21,8 @@ import { MEDIA_TYPE_CONFIG, STATUS_CONFIG, getProgressInfo } from "@/lib/mediaCo
 import { cn } from "@/lib/utils";
 import type { MediaEntry, MediaStatus, DynamicFields } from "@/types/media";
 import type { SeriesFields, AnimeFields, MangaFields, MovieFields } from "@/types/media";
+import { addProgressLog } from "@/lib/firebase/progressLog";
+import { ProgressLog } from "./ProgressLog";
 
 interface MediaDetailProps {
   entry: MediaEntry;
@@ -72,12 +74,26 @@ export function MediaDetail({ entry }: MediaDetailProps) {
         : "episodesWatched";
 
     try {
+      // 1. Actualizar el valor en la entry principal
       await updateEntry(user.uid, entry.id, {
         dynamicFields: {
           ...entry.dynamicFields,
           [progressKey]: currentProgress,
         } as DynamicFields,
       });
+
+      // 2. Registrar en el historial solo si hubo avance
+      const delta = currentProgress - progress.current;
+      if (delta !== 0) {
+        await addProgressLog(user.uid, entry.id, {
+          entryId: entry.id,
+          userId: user.uid,
+          previousValue: progress.current,
+          newValue: currentProgress,
+          delta,
+          unit: progress.unit,
+        });
+      }
     } finally {
       setSavingProgress(false);
     }
@@ -306,6 +322,9 @@ export function MediaDetail({ entry }: MediaDetailProps) {
 
       {/* ── Detalles específicos del tipo ─────────────────────────────── */}
       <DynamicDetails entry={entry} />
+
+      {/* ── Historial de progreso ─────────────────────────────────────── */}
+      {progress && <ProgressLog entryId={entry.id} />}
 
       {/* ── Fechas ───────────────────────────────────────────────────── */}
       {(entry.startDate || entry.endDate) && (

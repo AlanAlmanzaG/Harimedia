@@ -2,6 +2,7 @@
 import type { Metadata, Viewport } from "next";
 import { Geist } from "next/font/google";
 import { AuthProvider } from "@/components/providers/AuthProvider";
+import { ThemeProvider } from "@/components/providers/ThemeProvider";
 import "./globals.css";
 
 const geist = Geist({ subsets: ["latin"], variable: "--font-geist" });
@@ -18,7 +19,10 @@ export const metadata: Metadata = {
 };
 
 export const viewport: Viewport = {
-  themeColor: "#0a0a0a",
+  themeColor: [
+    { media: "(prefers-color-scheme: dark)", color: "#0a0a0a" },
+    { media: "(prefers-color-scheme: light)", color: "#fafafa" },
+  ],
   width: "device-width",
   initialScale: 1,
   maximumScale: 1,
@@ -31,9 +35,11 @@ export default function RootLayout({
   children: React.ReactNode;
 }) {
   return (
-    <html lang="es" className={geist.variable}>
-      <body className="bg-neutral-950 text-neutral-100 antialiased">
-        <AuthProvider>{children}</AuthProvider>
+    <html lang="es" className={geist.variable} suppressHydrationWarning>
+      <body className="antialiased">
+        <ThemeProvider>
+          <AuthProvider>{children}</AuthProvider>
+        </ThemeProvider>
       </body>
     </html>
   );

@@ -1,29 +1,57 @@
+/* src/app/globals.css */
 @import "tailwindcss";
 
+/* ─── Variables de tema ────────────────────────────────────────────────────── */
+
 :root {
-  --background: #ffffff;
-  --foreground: #171717;
+  /* Tema claro — fondo blanco roto, texto oscuro */
+  --bg-primary:    #fafafa;
+  --bg-secondary:  #f4f4f5;
+  --bg-tertiary:   #e4e4e7;
+  --bg-card:       #ffffff;
+
+  --text-primary:   #09090b;
+  --text-secondary: #52525b;
+  --text-muted:     #a1a1aa;
+
+  --border-default: #e4e4e7;
+  --border-subtle:  #f4f4f5;
+
+  --accent:         #7c3aed; /* violet-700 */
+  --accent-hover:   #6d28d9;
+  --accent-subtle:  #ede9fe;
+  --accent-text:    #5b21b6;
 }
 
-@theme inline {
-  --color-background: var(--background);
-  --color-foreground: var(--foreground);
-  --font-sans: var(--font-geist-sans);
-  --font-mono: var(--font-geist-mono);
+.dark {
+  /* Tema oscuro — fondo casi negro, texto claro */
+  --bg-primary:    #0a0a0a;
+  --bg-secondary:  #171717;
+  --bg-tertiary:   #262626;
+  --bg-card:       #171717;
+
+  --text-primary:   #fafafa;
+  --text-secondary: #a1a1aa;
+  --text-muted:     #52525b;
+
+  --border-default: #262626;
+  --border-subtle:  #1c1c1c;
+
+  --accent:         #7c3aed;
+  --accent-hover:   #8b5cf6;
+  --accent-subtle:  #2e1065;
+  --accent-text:    #a78bfa;
 }
 
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
-  }
-}
+/* ─── Base ─────────────────────────────────────────────────────────────────── */
 
 body {
-  background: var(--background);
-  color: var(--foreground);
-  font-family: Arial, Helvetica, sans-serif;
+  background-color: var(--bg-primary);
+  color: var(--text-primary);
+  transition: background-color 0.15s ease, color 0.15s ease;
 }
+
+/* ─── Scrollbar oculto (carrusel y listas) ─────────────────────────────────── */
 
 .scrollbar-none {
   -ms-overflow-style: none;
@@ -33,10 +61,23 @@ body {
   display: none;
 }
 
-.scrollbar-none {
-  -ms-overflow-style: none;
-  scrollbar-width: none;
-}
-.scrollbar-none::-webkit-scrollbar {
-  display: none;
-}
+/* ─── Utilidades de tema ───────────────────────────────────────────────────── */
+
+/* Fondos */
+.bg-theme-primary   { background-color: var(--bg-primary); }
+.bg-theme-secondary { background-color: var(--bg-secondary); }
+.bg-theme-card      { background-color: var(--bg-card); }
+
+/* Textos */
+.text-theme-primary   { color: var(--text-primary); }
+.text-theme-secondary { color: var(--text-secondary); }
+.text-theme-muted     { color: var(--text-muted); }
+
+/* Bordes */
+.border-theme         { border-color: var(--border-default); }
+.border-theme-subtle  { border-color: var(--border-subtle); }
+
+/* Acento */
+.bg-accent        { background-color: var(--accent); }
+.bg-accent-subtle { background-color: var(--accent-subtle); }
+.text-accent      { color: var(--accent-text); }

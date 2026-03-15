@@ -11,9 +11,9 @@ interface AppShellProps {
 export function AppShell({ children }: AppShellProps) {
   return (
     <RouteGuard requireAuth>
-      <div className="flex flex-col min-h-screen bg-neutral-950 text-neutral-100">
-        <header className="sticky top-0 z-40 flex items-center justify-between px-4 h-14 bg-neutral-950/80 backdrop-blur-sm border-b border-neutral-800/50">
-          <span className="font-semibold text-base tracking-tight text-neutral-100">
+      <div className="flex flex-col min-h-screen bg-[var(--bg-primary)] text-[var(--text-primary)]">
+        <header className="sticky top-0 z-40 flex items-center justify-between px-4 h-14 bg-[var(--bg-primary)]/80 backdrop-blur-sm border-b border-[var(--border-default)]">
+          <span className="font-semibold text-base tracking-tight text-[var(--text-primary)]">
             Harimedia
           </span>
           <div id="header-actions" />
