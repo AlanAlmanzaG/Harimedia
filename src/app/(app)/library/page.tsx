@@ -3,7 +3,7 @@
 
 import { useState } from "react";
 import Link from "next/link";
-import { Plus } from "lucide-react";
+import { Plus, List } from "lucide-react";
 import { useAuth } from "@/hooks/useAuth";
 import { useLibrary, type LibraryFilters } from "@/hooks/useLibrary";
 import { useLibrarySearch } from "@/hooks/useLibrarySearch";
@@ -46,6 +46,10 @@ export default function LibraryPage() {
           <Plus size={18} strokeWidth={2} />
         </Link>
       </div>
+
+      <Link href="/library/collections" className="w-9 h-9 ...">
+  <List size={18} strokeWidth={1.5} />
+</Link>
 
       {/* Búsqueda interna */}
       <LibrarySearchBar

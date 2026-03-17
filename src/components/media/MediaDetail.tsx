@@ -14,6 +14,7 @@ import {
   TrendingUp,
   AlertTriangle,
   Loader2,
+  ListPlus,
 } from "lucide-react";
 import { updateEntry, deleteEntry } from "@/lib/firebase/firestore";
 import { useAuth } from "@/hooks/useAuth";
@@ -23,6 +24,8 @@ import type { MediaEntry, MediaStatus, DynamicFields } from "@/types/media";
 import type { SeriesFields, AnimeFields, MangaFields, MovieFields } from "@/types/media";
 import { addProgressLog } from "@/lib/firebase/progressLog";
 import { ProgressLog } from "./ProgressLog";
+import { AddToCollectionSheet } from "@/components/collections/AddToCollectionSheet";
+import { CreateCollectionModal } from "@/components/collections/CreateCollectionModal";
 
 interface MediaDetailProps {
   entry: MediaEntry;
@@ -36,22 +39,21 @@ export function MediaDetail({ entry }: MediaDetailProps) {
   const router = useRouter();
   const { user } = useAuth();
 
+  const [showCollections, setShowCollections] = useState(false);
+  const [showCreateCollection, setShowCreateCollection] = useState(false);
+
   const [status, setStatus] = useState<MediaStatus>(entry.status);
   const [savingStatus, setSavingStatus] = useState(false);
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
   const [deleting, setDeleting] = useState(false);
 
-  // Para actualización rápida de progreso (series/anime/manga)
   const progress = getProgressInfo(entry.mediaType, entry.dynamicFields);
-  const [currentProgress, setCurrentProgress] = useState(
-    progress?.current ?? 0
-  );
+  const [currentProgress, setCurrentProgress] = useState(progress?.current ?? 0);
   const [savingProgress, setSavingProgress] = useState(false);
 
   const typeConfig = MEDIA_TYPE_CONFIG[entry.mediaType];
   const statusConfig = STATUS_CONFIG[status];
 
-  // ── Cambio de estado ───────────────────────────────────────────────────────
   async function handleStatusChange(newStatus: MediaStatus) {
     if (!user || newStatus === status) return;
     setSavingStatus(true);
@@ -63,7 +65,6 @@ export function MediaDetail({ entry }: MediaDetailProps) {
     }
   }
 
-  // ── Actualización rápida de progreso ───────────────────────────────────────
   async function handleProgressSave() {
     if (!user || !progress) return;
     setSavingProgress(true);
@@ -74,7 +75,6 @@ export function MediaDetail({ entry }: MediaDetailProps) {
         : "episodesWatched";
 
     try {
-      // 1. Actualizar el valor en la entry principal
       await updateEntry(user.uid, entry.id, {
         dynamicFields: {
           ...entry.dynamicFields,
@@ -82,7 +82,6 @@ export function MediaDetail({ entry }: MediaDetailProps) {
         } as DynamicFields,
       });
 
-      // 2. Registrar en el historial solo si hubo avance
       const delta = currentProgress - progress.current;
       if (delta !== 0) {
         await addProgressLog(user.uid, entry.id, {
@@ -99,7 +98,6 @@ export function MediaDetail({ entry }: MediaDetailProps) {
     }
   }
 
-  // ── Eliminar ───────────────────────────────────────────────────────────────
   async function handleDelete() {
     if (!user) return;
     setDeleting(true);
@@ -120,7 +118,6 @@ export function MediaDetail({ entry }: MediaDetailProps) {
     <div className="flex flex-col pb-10">
       {/* ── Hero con portada ──────────────────────────────────────────── */}
       <div className="relative w-full">
-        {/* Fondo difuminado */}
         {entry.coverUrl && (
           <div className="absolute inset-0 overflow-hidden">
             <Image
@@ -136,7 +133,6 @@ export function MediaDetail({ entry }: MediaDetailProps) {
         )}
 
         <div className="relative flex gap-4 px-4 pt-5 pb-6">
-          {/* Portada */}
           <div className="relative w-28 h-40 flex-none rounded-2xl overflow-hidden bg-neutral-800 shadow-xl border border-white/10">
             {entry.coverUrl ? (
               <Image
@@ -154,9 +150,7 @@ export function MediaDetail({ entry }: MediaDetailProps) {
             )}
           </div>
 
-          {/* Info principal */}
           <div className="flex-1 min-w-0 flex flex-col justify-end gap-2">
-            {/* Badge tipo */}
             <div
               className={cn(
                 "flex items-center gap-1.5 w-fit px-2 py-1 rounded-lg text-xs font-medium",
@@ -175,13 +169,10 @@ export function MediaDetail({ entry }: MediaDetailProps) {
               <p className="text-xs text-neutral-500">{entry.year}</p>
             )}
 
-            {/* Calificación */}
             {entry.rating != null && (
               <div className="flex items-center gap-1.5">
                 <Star size={13} strokeWidth={1.5} className="text-yellow-400 fill-yellow-400/30" />
-                <span className="text-sm font-semibold text-yellow-400">
-                  {entry.rating}
-                </span>
+                <span className="text-sm font-semibold text-yellow-400">{entry.rating}</span>
                 <span className="text-xs text-neutral-600">/10</span>
               </div>
             )}
@@ -189,9 +180,10 @@ export function MediaDetail({ entry }: MediaDetailProps) {
         </div>
       </div>
 
-      {/* ── Estado ───────────────────────────────────────────────────── */}
+      {/* ── Estado + acciones ─────────────────────────────────────────── */}
       <div className="px-4 mb-4">
         <div className="flex items-center gap-2">
+          {/* Selector de estado */}
           <div className="relative flex-1">
             <select
               value={status}
@@ -237,6 +229,16 @@ export function MediaDetail({ entry }: MediaDetailProps) {
           >
             <Edit2 size={16} strokeWidth={1.5} />
           </button>
+
+          {/* Botón agregar a lista */}
+          <button
+            type="button"
+            onClick={() => setShowCollections(true)}
+            className="w-10 h-10 flex items-center justify-center rounded-xl bg-neutral-900 border border-neutral-800 text-neutral-400 hover:text-neutral-200 transition-colors"
+            aria-label="Agregar a lista"
+          >
+            <ListPlus size={16} strokeWidth={1.5} />
+          </button>
         </div>
       </div>
 
@@ -258,7 +260,6 @@ export function MediaDetail({ entry }: MediaDetailProps) {
             </p>
           </div>
 
-          {/* Barra de progreso visual */}
           {progressPct !== null && (
             <div className="h-1.5 w-full rounded-full bg-neutral-800">
               <div
@@ -268,7 +269,6 @@ export function MediaDetail({ entry }: MediaDetailProps) {
             </div>
           )}
 
-          {/* Control +/- */}
           <div className="flex items-center gap-2">
             <button
               type="button"
@@ -337,17 +337,13 @@ export function MediaDetail({ entry }: MediaDetailProps) {
             {entry.startDate && (
               <div>
                 <p className="text-[10px] text-neutral-600 mb-0.5">Inicio</p>
-                <p className="text-sm text-neutral-300">
-                  {formatDate(entry.startDate)}
-                </p>
+                <p className="text-sm text-neutral-300">{formatDate(entry.startDate)}</p>
               </div>
             )}
             {entry.endDate && (
               <div>
                 <p className="text-[10px] text-neutral-600 mb-0.5">Fin</p>
-                <p className="text-sm text-neutral-300">
-                  {formatDate(entry.endDate)}
-                </p>
+                <p className="text-sm text-neutral-300">{formatDate(entry.endDate)}</p>
               </div>
             )}
           </div>
@@ -358,9 +354,7 @@ export function MediaDetail({ entry }: MediaDetailProps) {
       {entry.synopsis && (
         <div className="mx-4 mb-4">
           <p className="text-xs font-medium text-neutral-500 mb-2">Sinopsis</p>
-          <p className="text-sm text-neutral-400 leading-relaxed">
-            {entry.synopsis}
-          </p>
+          <p className="text-sm text-neutral-400 leading-relaxed">{entry.synopsis}</p>
         </div>
       )}
 
@@ -434,6 +428,25 @@ export function MediaDetail({ entry }: MediaDetailProps) {
           </div>
         )}
       </div>
+
+      {/* ── Modales de colecciones ────────────────────────────────────── */}
+      {showCollections && (
+        <AddToCollectionSheet
+          entryId={entry.id}
+          entryTitle={entry.title}
+          onClose={() => setShowCollections(false)}
+          onCreateNew={() => {
+            setShowCollections(false);
+            setShowCreateCollection(true);
+          }}
+        />
+      )}
+      {showCreateCollection && (
+        <CreateCollectionModal
+          onClose={() => setShowCreateCollection(false)}
+          onCreated={() => setShowCollections(true)}
+        />
+      )}
     </div>
   );
 }
