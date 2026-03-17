@@ -72,7 +72,7 @@ export default function AddMediaPage() {
         </div>
       </div>
 
-      {/* Formulario */}
+      {/* Formulario — sin padding-top extra, el form ya tiene pt-4 interno */}
       <MediaForm
         prefill={prefill ?? undefined}
         existingEntry={

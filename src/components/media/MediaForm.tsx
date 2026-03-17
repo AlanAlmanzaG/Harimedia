@@ -84,32 +84,40 @@ export function MediaForm({ prefill, existingEntry, onSuccess }: MediaFormProps)
     setSaving(true);
     setError(null);
 
-    const payload = {
+    // Firestore rechaza campos con valor `undefined`.
+    // Construimos el payload limpio omitiendo claves sin valor.
+    const rawPayload: Record<string, unknown> = {
       mediaType,
       title: title.trim(),
-      synopsis,
-      coverUrl,
+      synopsis: synopsis || "",
+      coverUrl: coverUrl || "",
       status,
-      rating,
-      review,
-      startDate: startDate ? new Date(startDate) : undefined,
-      endDate: endDate ? new Date(endDate) : undefined,
-      dynamicFields: dynamicFields as DynamicFieldsType,
-      externalId: prefill?.externalId ?? existingEntry?.externalId,
-      externalSource: prefill?.source ?? existingEntry?.externalSource,
+      dynamicFields: dynamicFields ?? {},
     };
+
+    // Campos opcionales — solo se incluyen si tienen valor
+    if (rating != null)      rawPayload.rating       = rating;
+    if (review.trim())       rawPayload.review       = review.trim();
+    if (startDate)           rawPayload.startDate    = new Date(startDate);
+    if (endDate)             rawPayload.endDate      = new Date(endDate);
+
+    const externalId = prefill?.externalId ?? existingEntry?.externalId;
+    const externalSource = prefill?.source ?? existingEntry?.externalSource;
+    if (externalId)     rawPayload.externalId     = externalId;
+    if (externalSource) rawPayload.externalSource = externalSource;
 
     try {
       let entryId: string;
       if (isEditing && existingEntry) {
-        await updateEntry(user.uid, existingEntry.id, payload);
+        await updateEntry(user.uid, existingEntry.id, rawPayload as any);
         entryId = existingEntry.id;
       } else {
-        entryId = await addEntry(user.uid, payload as any);
+        entryId = await addEntry(user.uid, rawPayload as any);
       }
       onSuccess?.(entryId);
       router.push(`/library/${entryId}`);
-    } catch {
+    } catch (err) {
+      console.error("Error guardando entrada:", err);
       setError("No se pudo guardar. Intenta de nuevo.");
     } finally {
       setSaving(false);
@@ -117,9 +125,9 @@ export function MediaForm({ prefill, existingEntry, onSuccess }: MediaFormProps)
   }
 
   return (
-    <form onSubmit={handleSubmit} className="flex flex-col gap-6 px-4 pb-10">
+    <form onSubmit={handleSubmit} className="flex flex-col gap-6 px-4 pt-6 pb-10">
       {/* ── Portada + título ──────────────────────────────────────────── */}
-      <div className="flex gap-3 pt-4">
+      <div className="flex gap-3">
         <div className="relative w-20 h-28 flex-none rounded-xl overflow-hidden bg-neutral-800 border border-neutral-700/60">
           {coverUrl ? (
             <Image
